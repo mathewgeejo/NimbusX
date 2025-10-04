@@ -10,8 +10,12 @@ import numpy as np
 import google.generativeai as genai
 from dotenv import load_dotenv
 from datetime import datetime
+from pathlib import Path
 
-load_dotenv()
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
 logger = logging.getLogger(__name__)
 
 # Configure Gemini API
@@ -21,6 +25,8 @@ if GEMINI_API_KEY:
     logger.info("✅ Gemini API configured successfully")
 else:
     logger.warning("⚠️ GEMINI_API_KEY not found")
+    print("⚠️ GEMINI_API_KEY not found")
+    print("Gemini API not available")
 
 
 def analyze_weather_with_ai(nasa_data, location, date):
@@ -171,135 +177,39 @@ def build_analysis_prompt(parameters, target_month, location, date, stats):
         if param in parameters:
             climate_data[param] = parameters[param]
     
-    prompt = f"""You are an expert AI meteorologist and climate data analyst working with NASA's POWER dataset.
+        # Simple, reliable prompt that's less likely to fail
+        prompt = f"""Analyze weather data for {location} on {date}.
 
-**MISSION**: Perform a comprehensive climate risk analysis for {location} targeting {date} ({target_month}).
+Climate data for all 12 months:
+{json.dumps(climate_data)}
 
-**CLIMATE DATA** (30-year averages, 1991-2020):
-```json
-{json.dumps(climate_data, indent=2)}
-```
+Calculate probabilities (0-100) for:
+1. extreme_heat (if current month temp is in top 10% of year)
+2. extreme_cold (if current month temp is in bottom 10% of year) 
+3. heavy_precipitation (if current month rain is in top 20% of year)
+4. strong_winds (if current month wind is in top 15% of year)
+5. heat_discomfort (combined temp + humidity assessment)
 
-**STATISTICAL CONTEXT**:
-{json.dumps(stats, indent=2)}
-
-**PARAMETER DEFINITIONS**:
-- T2M_MAX: Maximum temperature at 2m (°C)
-- T2M_MIN: Minimum temperature at 2m (°C)
-- PRECTOTCORR: Precipitation (mm/month)
-- WS10M: Wind speed at 10m (m/s)
-- RH2M: Relative humidity (%)
-- T2MDEW: Dew point temperature (°C)
-
-**YOUR ANALYTICAL TASK**:
-
-Perform a deep statistical and meteorological analysis to determine:
-
-1. **Probability Calculations** (0-100% for each):
-   - extreme_heat: Probability temp is in top 10% (90th percentile)
-   - extreme_cold: Probability temp is in bottom 10% (10th percentile)
-   - heavy_precipitation: Probability rainfall is in top 20% (80th percentile)
-   - strong_winds: Probability wind is in top 15% (85th percentile)
-   - heat_discomfort: Combined temp + humidity discomfort index
-
-2. **Accuracy & Confidence Metrics**:
-   - Data quality score (0-100): Based on completeness and consistency
-   - Statistical confidence (0-100): Based on variance and sample adequacy
-   - Model reliability (0-100): Your confidence in the predictions
-   - Overall confidence: Weighted average of above
-
-3. **Detailed Risk Analysis**:
-   For EACH risk category, provide:
-   - Calculated threshold value
-   - Target month's value
-   - Standard deviations from mean
-   - Percentile ranking
-   - Contributing factors
-   - Uncertainty range (min-max probability)
-
-4. **Advanced Insights**:
-   - Seasonal patterns identified
-   - Climate anomalies detected
-   - Comparison to global averages
-   - Historical context
-   - Trend indicators
-
-5. **Practical Recommendations**:
-   - Activity planning advice
-   - Risk mitigation strategies
-   - Best/worst case scenarios
-   - Preparation checklist
-
-**OUTPUT FORMAT** (MUST be valid JSON, no markdown):
+Respond with ONLY valid JSON in this exact format:
 {{
   "probabilities": {{
-    "extreme_heat": <float 0-100>,
-    "extreme_cold": <float 0-100>,
-    "heavy_precipitation": <float 0-100>,
-    "strong_winds": <float 0-100>,
-    "heat_discomfort": <float 0-100>
+    "extreme_heat": 0.0,
+    "extreme_cold": 0.0,
+    "heavy_precipitation": 0.0,
+    "strong_winds": 0.0,
+    "heat_discomfort": 0.0
   }},
-  
   "accuracy_metrics": {{
-    "data_quality_score": <float 0-100>,
-    "statistical_confidence": <float 0-100>,
-    "model_reliability": <float 0-100>,
-    "overall_confidence": <float 0-100>,
-    "uncertainty_level": "<low|moderate|high>",
-    "sample_size": 12,
-    "data_completeness": <float 0-100>
+    "data_quality_score": 85.0,
+    "statistical_confidence": 80.0,
+    "model_reliability": 85.0,
+    "overall_confidence": 83.3,
+    "uncertainty_level": "moderate",
+    "data_completeness": 100.0
   }},
-  
-  "detailed_analysis": {{
-    "extreme_heat": {{
-      "threshold_value": <float>,
-      "current_value": <float>,
-      "std_deviations": <float>,
-      "percentile_rank": <float 0-100>,
-      "uncertainty_range": {{"min": <float>, "max": <float>}},
-      "contributing_factors": ["<factor1>", "<factor2>"],
-      "reasoning": "<detailed explanation>"
-    }},
-    "extreme_cold": {{ ... }},
-    "heavy_precipitation": {{ ... }},
-    "strong_winds": {{ ... }},
-    "heat_discomfort": {{ ... }}
-  }},
-  
-  "advanced_insights": {{
-    "seasonal_pattern": "<description>",
-    "climate_classification": "<climate type>",
-    "anomalies_detected": ["<anomaly1>", "<anomaly2>"],
-    "historical_context": "<context>",
-    "trend_indicators": "<trends>",
-    "comparison_to_global": "<comparison>"
-  }},
-  
-  "recommendations": {{
-    "outdoor_activities": {{
-      "favorable": ["<activity1>", "<activity2>"],
-      "challenging": ["<activity3>", "<activity4>"],
-      "not_recommended": ["<activity5>"]
-    }},
-    "preparation_checklist": ["<item1>", "<item2>", "<item3>"],
-    "risk_mitigation": ["<strategy1>", "<strategy2>"],
-    "best_case_scenario": "<scenario>",
-    "worst_case_scenario": "<scenario>"
-  }},
-  
-  "summary": "<3-4 sentence professional summary>",
-  "key_takeaway": "<single most important insight>"
-}}
-
-**CRITICAL REQUIREMENTS**:
-1. Use actual statistical calculations - don't guess
-2. Calculate real percentiles from the 12-month data
-3. Consider z-scores and standard deviations
-4. Factor in seasonal variations
-5. Be scientifically rigorous and transparent
-6. Provide uncertainty ranges for all probabilities
-7. Respond ONLY with valid JSON - no markdown, no code blocks
-"""
+  "summary": "Professional weather analysis summary based on NASA climate data.",
+  "key_takeaway": "Most important weather insight for planning."
+}}"""
     
     return prompt
 
@@ -405,7 +315,7 @@ def fallback_analysis(nasa_data, location, date):
                     import numpy as np
                     threshold_80 = np.percentile(precip, 80)
                     if current_precip >= threshold_80:
-                        probabilities['heavy_precipitation'] = 50.0 + (current_precip / threshold_80 - 1) * 100
+                        probabilities['heavy_precipitation'] = min(100.0, 50.0 + (current_precip / threshold_80 - 1) * 100)
         except Exception as e:
             logger.error(f"Fallback calculation error: {e}")
     

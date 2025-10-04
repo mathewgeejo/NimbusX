@@ -74,7 +74,15 @@ def get_weather_probabilities():
         
         # Step 2: Use Gemini AI for comprehensive analysis
         logger.info(f"🤖 Starting AI-powered analysis...")
-        ai_analysis = analyze_weather_with_ai(nasa_data, location, date)
+        
+        # Try simple AI analysis first
+        from simple_gemini import simple_ai_analysis
+        ai_analysis = simple_ai_analysis(nasa_data, location, date)
+        
+        # If simple analysis fails, try complex one
+        if not ai_analysis:
+            logger.info("Simple AI failed, trying complex analysis...")
+            ai_analysis = analyze_weather_with_ai(nasa_data, location, date)
         
         # Step 3: Add coordinate information
         ai_analysis['coordinates'] = {"lat": lat, "lon": lon}
