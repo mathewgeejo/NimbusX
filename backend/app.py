@@ -20,6 +20,7 @@ from nasa_api import fetch_nasa_weather_data
 from data_processor import process_weather_data
 from gemini_agent import generate_weather_summary
 from gemini_analyzer import analyze_weather_with_ai
+from ensemble_predictor import ensemble_predictor
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -72,25 +73,26 @@ def get_weather_probabilities():
         if not nasa_data:
             return jsonify({"error": "Failed to fetch NASA data"}), 500
         
-        # Step 2: Use Gemini AI for comprehensive analysis
-        logger.info(f"🤖 Starting AI-powered analysis...")
+        # Step 2: Use Advanced Ensemble Prediction System
+        logger.info(f"🚀 Starting Advanced Ensemble Analysis (ML + Physics + Statistical)...")
         
-        # Try simple AI analysis first
-        from simple_gemini import simple_ai_analysis
-        ai_analysis = simple_ai_analysis(nasa_data, location, date)
+        # Prepare location data for physics model
+        location_data = {"lat": lat, "lon": lon, "name": location}
         
-        # If simple analysis fails, try complex one
-        if not ai_analysis:
-            logger.info("Simple AI failed, trying complex analysis...")
-            ai_analysis = analyze_weather_with_ai(nasa_data, location, date)
+        # Run ensemble prediction
+        ensemble_result = ensemble_predictor.predict_ensemble_weather_risks(
+            nasa_data, date, location_data
+        )
         
-        # Step 3: Add coordinate information
-        ai_analysis['coordinates'] = {"lat": lat, "lon": lon}
-        ai_analysis['location'] = location
-        ai_analysis['date'] = date
+        # Step 3: Add coordinate and metadata information
+        ensemble_result['coordinates'] = {"lat": lat, "lon": lon}
+        ensemble_result['location'] = location
+        ensemble_result['date'] = date
+        ensemble_result['data_source'] = "NASA POWER API (30-year climatology)"
+        ensemble_result['analysis_type'] = "Advanced Ensemble (ML + Physics + Statistical)"
         
-        logger.info(f"✅ Successfully processed AI analysis for {location} - Confidence: {ai_analysis.get('accuracy_metrics', {}).get('overall_confidence', 'N/A')}%")
-        return jsonify(ai_analysis), 200
+        logger.info(f"✅ Ensemble analysis complete for {location} - Overall Confidence: {ensemble_result.get('accuracy_metrics', {}).get('overall_confidence', 'N/A'):.1f}%")
+        return jsonify(ensemble_result), 200
         
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")
