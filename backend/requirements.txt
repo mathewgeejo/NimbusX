@@ -6,3 +6,8 @@ numpy>=1.26.0
 google-generativeai==0.3.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
+
+# Advanced ML and Neural Dependencies
+scikit-learn>=1.3.0
+pandas>=2.0.0
+scipy>=1.11.0
