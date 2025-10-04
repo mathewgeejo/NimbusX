@@ -67,7 +67,8 @@ Write a concise, friendly, and informative 2-3 sentence summary for a dashboard 
 Summary:"""
         
         # Generate content using Gemini
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Use gemini-1.5-pro which is the correct available model
+        model = genai.GenerativeModel('gemini-1.5-pro')
         response = model.generate_content(prompt)
         
         summary = response.text.strip()

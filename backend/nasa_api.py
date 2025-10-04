@@ -63,7 +63,15 @@ def fetch_nasa_weather_data(lat, lon, target_date):
         parameters = data['properties']['parameter']
         
         # Get the specific month's data (climatology is monthly average)
-        month_key = str(month) if month >= 10 else f"0{month}"
+        # NASA API uses text month names: JAN, FEB, MAR, etc.
+        month_names = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                       'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+        month_key = month_names[month - 1]
+        
+        # Debug: Log what we're looking for and what's available
+        logger.info(f"Looking for month key: {month_key}")
+        if 'T2M_MAX' in parameters:
+            logger.info(f"T2M_MAX keys available: {list(parameters['T2M_MAX'].keys())}")
         
         result = {
             'temperature': parameters.get('T2M', {}).get(month_key, None),
@@ -76,6 +84,9 @@ def fetch_nasa_weather_data(lat, lon, target_date):
             'month': month,
             'day': day
         }
+        
+        # Debug: Log what values we extracted
+        logger.info(f"Extracted values: temp_max={result['temp_max']}, precip={result['precipitation']}, wind={result['wind_speed']}")
         
         # For more detailed analysis, fetch annual data to calculate percentiles
         result['annual_data'] = {
