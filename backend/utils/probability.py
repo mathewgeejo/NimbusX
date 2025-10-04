@@ -23,49 +23,50 @@ def calculate_percentile_probability(value, historical_data, percentile, directi
         if not historical_data or value is None:
             return 0.0
         
+        # Convert to numpy array for easier handling
+        historical_data = np.array(historical_data)
+        
         # Calculate the percentile threshold
         threshold = np.percentile(historical_data, percentile)
         
-        # Calculate standard deviation for probability estimation
-        std_dev = np.std(historical_data)
-        mean = np.mean(historical_data)
-        
-        if std_dev == 0:
-            # If no variation, use simple threshold comparison
-            if direction == 'above':
-                return 100.0 if value > threshold else 0.0
-            else:
-                return 100.0 if value < threshold else 0.0
-        
-        # Calculate z-score
-        z_score = (value - mean) / std_dev
-        
-        # Convert to probability using normal distribution approximation
-        # For percentile-based probability:
+        # Calculate where the value falls in the distribution
         if direction == 'above':
-            # How much above the threshold
-            if value > threshold:
-                # Calculate how far above threshold as a percentage
-                distance = value - threshold
-                prob = min(100, 50 + (distance / std_dev) * 20)
+            # For "above percentile" checks (hot, wet, windy)
+            # Calculate what percentile the current value represents
+            current_percentile = (np.sum(historical_data <= value) / len(historical_data)) * 100
+            
+            # If we're checking for values above the Xth percentile:
+            # - If current is at 95th percentile and threshold is 90th → high probability
+            # - If current is at 50th percentile and threshold is 90th → low probability
+            if current_percentile >= percentile:
+                # Value is above threshold - scale from 50% to 100%
+                prob = 50 + ((current_percentile - percentile) / (100 - percentile)) * 50
             else:
-                # Below threshold, calculate inverse probability
-                distance = threshold - value
-                prob = max(0, 50 - (distance / std_dev) * 20)
-        else:  # below
-            # How much below the threshold
-            if value < threshold:
-                distance = threshold - value
-                prob = min(100, 50 + (distance / std_dev) * 20)
+                # Value is below threshold - scale from 0% to 50%
+                prob = (current_percentile / percentile) * 50
+                
+        else:  # 'below'
+            # For "below percentile" checks (cold)
+            current_percentile = (np.sum(historical_data <= value) / len(historical_data)) * 100
+            
+            # If we're checking for values below the Xth percentile:
+            # - If current is at 5th percentile and threshold is 10th → high probability
+            # - If current is at 50th percentile and threshold is 10th → low probability
+            if current_percentile <= percentile:
+                # Value is below threshold - scale from 50% to 100%
+                prob = 50 + ((percentile - current_percentile) / percentile) * 50
             else:
-                distance = value - threshold
-                prob = max(0, 50 - (distance / std_dev) * 20)
+                # Value is above threshold - scale from 0% to 50%
+                prob = max(0, 50 - ((current_percentile - percentile) / (100 - percentile)) * 50)
         
-        return float(prob)
+        return float(min(100, max(0, prob)))
         
     except Exception as e:
         print(f"Error calculating probability: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return 0.0
+
 
 
 def calculate_combined_probability(prob1, prob2, method='max'):

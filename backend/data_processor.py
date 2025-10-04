@@ -22,6 +22,9 @@ def process_weather_data(nasa_data, target_date):
         dict: Probabilities for each extreme condition
     """
     try:
+        # Debug: Log received data
+        logger.info(f"Processing NASA data: {list(nasa_data.keys())}")
+        
         # Extract current month values
         temp = nasa_data.get('temp_max')
         temp_min = nasa_data.get('temp_min')
@@ -30,11 +33,15 @@ def process_weather_data(nasa_data, target_date):
         humidity = nasa_data.get('humidity')
         dew_point = nasa_data.get('dew_point')
         
+        logger.info(f"Current values - Temp: {temp}, Temp_min: {temp_min}, Precip: {precip}, Wind: {wind}")
+        
         # Extract annual data for percentile calculations
         annual_temp_max = nasa_data.get('annual_data', {}).get('temp_max', [])
         annual_temp_min = nasa_data.get('annual_data', {}).get('temp_min', [])
         annual_precip = nasa_data.get('annual_data', {}).get('precipitation', [])
         annual_wind = nasa_data.get('annual_data', {}).get('wind_speed', [])
+        
+        logger.info(f"Annual data lengths - Temp: {len(annual_temp_max)}, Precip: {len(annual_precip)}, Wind: {len(annual_wind)}")
         
         # Remove any None values from annual data
         annual_temp_max = [x for x in annual_temp_max if x is not None]

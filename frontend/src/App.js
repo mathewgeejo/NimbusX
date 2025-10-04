@@ -62,11 +62,14 @@ function App() {
   };
 
   const handleMapClick = (coords) => {
+    console.log('Map clicked at:', coords);
     setLat(coords.lat.toFixed(4));
     setLon(coords.lng.toFixed(4));
+    setLocation(`Location: ${coords.lat.toFixed(2)}°, ${coords.lng.toFixed(2)}°`);
   };
 
   const handleLocationSelect = (coords, name) => {
+    console.log('Location selected:', name, coords);
     setLat(coords.lat.toFixed(4));
     setLon(coords.lon.toFixed(4));
     setLocation(name);
