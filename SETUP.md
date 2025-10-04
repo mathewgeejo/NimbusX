@@ -44,6 +44,12 @@ Frontend opens at: http://localhost:3000
 **Problem**: `ModuleNotFoundError: No module named 'flask'`
 **Solution**: Make sure virtual environment is activated and run `pip install -r requirements.txt`
 
+**Problem**: Pandas/NumPy build errors on Windows
+**Solution**: 
+- The requirements.txt has been optimized to avoid C++ build dependencies
+- If numpy fails, you may need Microsoft C++ Build Tools
+- Alternative: Use Python 3.10 or 3.11 (better Windows compatibility)
+
 **Problem**: `GEMINI_API_KEY not found`
 **Solution**: 
 1. Copy `.env.example` to `.env`
@@ -113,10 +119,10 @@ Use these for testing:
 - Flask - Web framework
 - Flask-CORS - Allow frontend to connect
 - requests - HTTP library for NASA API
-- numpy - Math calculations
-- pandas - Data processing
+- numpy - Math calculations (for statistics)
 - google-generativeai - Gemini AI
 - python-dotenv - Environment variables
+- gunicorn - Production WSGI server
 
 ### Frontend
 - React - UI framework

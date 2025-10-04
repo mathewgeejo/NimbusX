@@ -6,6 +6,16 @@ NASA Space Apps Challenge Hackathon Project
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+# Get the directory where this script is located
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / '.env'
+load_dotenv(dotenv_path=ENV_PATH)
+
 from nasa_api import fetch_nasa_weather_data
 from data_processor import process_weather_data
 from gemini_agent import generate_weather_summary
