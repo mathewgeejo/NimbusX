@@ -21,9 +21,18 @@ ChartJS.register(
 );
 
 const ProbabilityChart = ({ probabilities }) => {
+  // Professional label mapping
+  const labelMap = {
+    'very_hot': 'Extreme Heat',
+    'very_cold': 'Extreme Cold',
+    'very_wet': 'Heavy Precipitation',
+    'very_windy': 'Strong Winds',
+    'very_uncomfortable': 'Heat Discomfort'
+  };
+  
   // Prepare data for chart
   const labels = Object.keys(probabilities).map(key => 
-    key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    labelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   );
   
   const values = Object.values(probabilities);

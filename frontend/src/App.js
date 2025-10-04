@@ -218,14 +218,21 @@ function App() {
 
             {/* Probability Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {Object.entries(data.probabilities).map(([key, value]) => (
-                <WeatherCard
-                  key={key}
-                  label={formatLabel(key)}
-                  value={value}
-                  icon={getIconForCondition(key)}
-                />
-              ))}
+              {Object.entries(data.probabilities).map(([key, value]) => {
+                const metricInfo = getMetricInfo(key, data);
+                return (
+                  <WeatherCard
+                    key={key}
+                    label={formatLabel(key)}
+                    value={value}
+                    icon={getIconForCondition(key)}
+                    metricValue={metricInfo.value}
+                    metricUnit={metricInfo.unit}
+                    threshold={metricInfo.threshold}
+                    description={metricInfo.description}
+                  />
+                );
+              })}
             </div>
 
             {/* Probability Chart */}
@@ -248,14 +255,14 @@ function App() {
   );
 }
 
-// Helper function to format labels
+// Helper function to format labels with professional terminology
 function formatLabel(key) {
   const labels = {
-    'very_hot': '🌡️ Very Hot',
-    'very_cold': '❄️ Very Cold',
-    'very_wet': '🌧️ Very Wet',
-    'very_windy': '💨 Very Windy',
-    'very_uncomfortable': '😓 Very Uncomfortable'
+    'very_hot': 'Extreme Heat',
+    'very_cold': 'Extreme Cold',
+    'very_wet': 'Heavy Precipitation',
+    'very_windy': 'Strong Winds',
+    'very_uncomfortable': 'Heat Discomfort Index'
   };
   return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
@@ -270,6 +277,45 @@ function getIconForCondition(key) {
     'very_uncomfortable': '😓'
   };
   return icons[key] || '📊';
+}
+
+// Helper function to get metric information for each risk category
+function getMetricInfo(key, data) {
+  if (!data?.metrics) return {};
+  
+  const metricMap = {
+    very_hot: {
+      value: data.metrics.temp_max,
+      unit: '°C',
+      threshold: 'Based on 90th percentile threshold',
+      description: 'Maximum daily temperature'
+    },
+    very_cold: {
+      value: data.metrics.temp_min,
+      unit: '°C',
+      threshold: 'Based on 10th percentile threshold',
+      description: 'Minimum daily temperature'
+    },
+    very_wet: {
+      value: data.metrics.precipitation,
+      unit: 'mm/day',
+      threshold: 'Based on 80th percentile threshold',
+      description: 'Daily precipitation amount'
+    },
+    very_windy: {
+      value: data.metrics.wind_speed,
+      unit: 'm/s',
+      threshold: 'Based on 85th percentile threshold',
+      description: 'Wind speed at 2m height'
+    },
+    very_uncomfortable: {
+      value: data.metrics.heat_index,
+      unit: '',
+      threshold: 'Calculated from temp & humidity',
+      description: 'Feels-like temperature index'
+    }
+  };
+  return metricMap[key] || {};
 }
 
 export default App;

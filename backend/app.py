@@ -77,13 +77,20 @@ def get_weather_probabilities():
         # Step 3: Generate AI summary using Gemini
         summary = generate_weather_summary(probabilities, location, date)
         
-        # Step 4: Return response
+        # Step 4: Return response with probabilities and actual metric values
         response = {
             "probabilities": probabilities,
             "summary": summary,
             "location": location,
             "coordinates": {"lat": lat, "lon": lon},
-            "date": date
+            "date": date,
+            "metrics": {
+                "temp_max": round(nasa_data.get('temp_max', 0), 1) if nasa_data.get('temp_max') else None,
+                "temp_min": round(nasa_data.get('temp_min', 0), 1) if nasa_data.get('temp_min') else None,
+                "precipitation": round(nasa_data.get('precipitation', 0), 1) if nasa_data.get('precipitation') else None,
+                "wind_speed": round(nasa_data.get('wind_speed', 0), 1) if nasa_data.get('wind_speed') else None,
+                "heat_index": round(nasa_data.get('humidity', 0), 1) if nasa_data.get('humidity') else None
+            }
         }
         
         logger.info(f"Successfully processed request for {location}")

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const WeatherCard = ({ label, value, icon }) => {
+const WeatherCard = ({ label, value, icon, metricValue, metricUnit, threshold, description }) => {
   // Determine color based on probability value
   const getColorClasses = () => {
     if (value >= 70) {
@@ -25,8 +25,32 @@ const WeatherCard = ({ label, value, icon }) => {
         <h3 className="text-lg font-bold">{label}</h3>
         {icon && <span className="text-3xl">{icon}</span>}
       </div>
+      
+      {/* Probability */}
       <p className="text-4xl font-bold mb-1">{value.toFixed(1)}%</p>
-      <p className="text-sm opacity-90">{getRiskLevel()}</p>
+      <p className="text-sm opacity-90 mb-2">{getRiskLevel()}</p>
+      
+      {/* Actual Metric Value */}
+      {metricValue !== undefined && metricValue !== null && (
+        <div className="mt-3 mb-2 bg-white bg-opacity-20 rounded-lg p-2">
+          <p className="text-xs font-semibold opacity-80">Current Value</p>
+          <p className="text-lg font-bold">{metricValue} {metricUnit}</p>
+        </div>
+      )}
+      
+      {/* Threshold Explanation */}
+      {threshold && (
+        <p className="text-xs opacity-75 mb-2">
+          📊 {threshold}
+        </p>
+      )}
+      
+      {/* Description */}
+      {description && (
+        <p className="text-xs opacity-80 italic">
+          {description}
+        </p>
+      )}
       
       {/* Progress bar */}
       <div className="mt-3 bg-white bg-opacity-30 rounded-full h-2 overflow-hidden">
