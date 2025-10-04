@@ -74,21 +74,22 @@ class AdvancedNeuralWeatherModel:
         }
     
     def predict_multi_temporal(self, weather_data: Dict, target_date: str, 
-                             prediction_horizons: List[str]) -> Dict[str, Any]:
+                             prediction_horizons: List[str], target_year: int = None) -> Dict[str, Any]:
         """
         Generate predictions across multiple time horizons using innovative algorithms
         
         Args:
             weather_data: Multi-source weather data
-            target_date: Target prediction date
+            target_date: Target prediction date (MM-DD format)
             prediction_horizons: ['short_term', 'seasonal', 'climate']
+            target_year: Year for prediction (enables year-aware features)
         
         Returns:
             Multi-horizon predictions with confidence intervals
         """
         try:
-            # Extract and engineer advanced features
-            engineered_features = self._engineer_advanced_features(weather_data, target_date)
+            # Extract and engineer advanced features with year context
+            engineered_features = self._engineer_advanced_features(weather_data, target_date, target_year)
             
             predictions = {}
             
@@ -126,9 +127,10 @@ class AdvancedNeuralWeatherModel:
             logger.error(f"Advanced neural prediction error: {str(e)}")
             return self._get_neural_fallback()
     
-    def _engineer_advanced_features(self, weather_data: Dict, target_date: str) -> np.ndarray:
+    def _engineer_advanced_features(self, weather_data: Dict, target_date: str, target_year: int = None) -> np.ndarray:
         """
         Advanced feature engineering using signal processing and chaos theory
+        Enhanced with year-aware temporal features for historical analysis and long-term forecasting
         """
         features = []
         
@@ -139,9 +141,26 @@ class AdvancedNeuralWeatherModel:
         wind_speed = weather_data.get('wind_speed', 5.0)
         precipitation = weather_data.get('precipitation', 0.0)
         
-        # Time-based features
-        date_obj = datetime.strptime(target_date, '%m-%d')
+        # Year-aware time-based features
+        current_year = datetime.now().year
+        if target_year is None:
+            target_year = current_year
+            
+        # Enhanced date parsing with year context
+        try:
+            full_date_str = f"{target_year}-{target_date}"
+            date_obj = datetime.strptime(full_date_str, '%Y-%m-%d')
+        except:
+            # Fallback to current year if parsing fails
+            date_obj = datetime.strptime(f"{current_year}-{target_date}", '%Y-%m-%d')
+            
         day_of_year = date_obj.timetuple().tm_yday
+        
+        # Year-aware temporal features
+        year_offset = target_year - current_year
+        is_historical = target_year < current_year
+        is_forecast = target_year > current_year
+        is_current_year = target_year == current_year
         
         # Original features
         features.extend([
@@ -170,6 +189,24 @@ class AdvancedNeuralWeatherModel:
         chaos_x = temp * np.cos(day_of_year * np.pi / 180)
         chaos_y = humidity * np.sin(day_of_year * np.pi / 180)
         features.extend([chaos_x, chaos_y])
+        
+        # 5. Year-aware temporal features for multi-temporal predictions
+        features.extend([
+            year_offset,                                    # Years from current
+            float(is_historical),                           # Historical analysis flag
+            float(is_forecast),                            # Future forecast flag
+            float(is_current_year),                        # Current year flag
+            np.sin(2 * np.pi * target_year / 100.0),      # Long-term cycle (century)
+            np.cos(2 * np.pi * target_year / 100.0),      # Long-term cycle component
+            target_year % 10,                              # Decade position
+            (target_year - 2020) / 50.0 if target_year >= 2020 else -1.0  # Climate change era
+        ])
+        
+        # 6. Year-adjusted chaos embedding for temporal consistency
+        year_chaos_factor = 1.0 + (year_offset * 0.1)  # Gradual chaos increase over time
+        chaos_x_temporal = chaos_x * year_chaos_factor
+        chaos_y_temporal = chaos_y * year_chaos_factor
+        features.extend([chaos_x_temporal, chaos_y_temporal])
         
         return np.array(features)
     

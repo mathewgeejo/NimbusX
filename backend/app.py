@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables from .env file
 # Get the directory where this script is located
@@ -57,39 +58,52 @@ def get_weather_probabilities():
         lon = float(data.get('lon'))
         location = data.get('location', 'Selected Location')
         date = data.get('date')  # Format: MM-DD
+        year = data.get('year', datetime.now().year + 1)  # Default to next year
         
         # Validate input
         if not all([lat, lon, date]):
             return jsonify({"error": "Missing required fields: lat, lon, date"}), 400
         
+        # Validate year
+        current_year = datetime.now().year
+        if year < current_year - 5 or year > current_year + 10:
+            return jsonify({"error": f"Year must be between {current_year - 5} and {current_year + 10}"}), 400
+        
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
             return jsonify({"error": "Invalid coordinates"}), 400
         
-        logger.info(f"Fetching weather data for {location} ({lat}, {lon}) on {date}")
+        logger.info(f"Fetching weather data for {location} ({lat}, {lon}) on {date}/{year}")
         
-        # Step 1: Fetch NASA POWER API data
+        # Step 1: Fetch NASA POWER API data with year context
         nasa_data = fetch_nasa_weather_data(lat, lon, date)
         
         if not nasa_data:
             return jsonify({"error": "Failed to fetch NASA data"}), 500
         
+        # Add year information to NASA data
+        nasa_data['target_year'] = year
+        nasa_data['prediction_type'] = 'historical' if year <= current_year else 'forecast'
+        
         # Step 2: Use Advanced Ensemble Prediction System
-        logger.info(f"🚀 Starting Advanced Ensemble Analysis (ML + Physics + Statistical)...")
+        logger.info(f"🚀 Starting Year-Aware Advanced Ensemble Analysis ({year})...")
         
-        # Prepare location data for physics model
-        location_data = {"lat": lat, "lon": lon, "name": location}
+        # Prepare location data for physics model with year context
+        location_data = {"lat": lat, "lon": lon, "name": location, "target_year": year}
         
-        # Run ensemble prediction
+        # Run ensemble prediction with year context
         ensemble_result = ensemble_predictor.predict_ensemble_weather_risks(
-            nasa_data, date, location_data
+            nasa_data, date, location_data, year
         )
         
-        # Step 3: Add coordinate and metadata information
+        # Step 3: Add coordinate and metadata information with year context
         ensemble_result['coordinates'] = {"lat": lat, "lon": lon}
         ensemble_result['location'] = location
         ensemble_result['date'] = date
-        ensemble_result['data_source'] = "NASA POWER API (30-year climatology)"
-        ensemble_result['analysis_type'] = "Advanced Ensemble (ML + Physics + Statistical)"
+        ensemble_result['year'] = year
+        ensemble_result['full_date'] = f"{date}/{year}"
+        ensemble_result['data_source'] = "NASA POWER API (30-year climatology) + Multi-Temporal Analysis"
+        ensemble_result['analysis_type'] = f"Year-Aware Advanced Ensemble ({year})"
+        ensemble_result['prediction_category'] = 'Historical Analysis' if year <= current_year else ('Next Year Forecast' if year == current_year + 1 else 'Long-term Projection')
         
         logger.info(f"✅ Ensemble analysis complete for {location} - Overall Confidence: {ensemble_result.get('accuracy_metrics', {}).get('overall_confidence', 'N/A'):.1f}%")
         return jsonify(ensemble_result), 200

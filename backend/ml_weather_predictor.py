@@ -42,9 +42,10 @@ class WeatherRiskMLModel:
         ]
         self.is_trained = False
     
-    def engineer_features(self, data):
+    def engineer_features(self, data, target_year=None):
         """
         Advanced feature engineering from raw NASA data
+        Enhanced with year-aware temporal features for historical analysis and forecasting
         """
         features = {}
         
@@ -60,6 +61,17 @@ class WeatherRiskMLModel:
         features['lat'] = data.get('lat', 0)
         features['lon'] = data.get('lon', 0)
         features['month'] = data.get('month', 1)
+        
+        # Year-aware temporal features for ML training enhancement
+        current_year = datetime.now().year
+        if target_year is None:
+            target_year = current_year
+            
+        features['target_year'] = target_year
+        features['year_offset'] = target_year - current_year
+        features['is_historical'] = 1 if target_year < current_year else 0
+        features['is_forecast'] = 1 if target_year > current_year else 0
+        features['climate_era'] = (target_year - 2020) / 50.0 if target_year >= 2020 else -1.0
         
         # Derived features (advanced meteorology)
         features['temp_range'] = features['temp_max'] - features['temp_min']
@@ -218,9 +230,10 @@ class WeatherRiskMLModel:
         self.is_trained = True
         logger.info("✅ ML models trained successfully!")
     
-    def predict_weather_risks(self, nasa_data, target_date):
+    def predict_weather_risks(self, nasa_data, target_date, target_year=None):
         """
         Predict weather risks using trained ML models or statistical approximation
+        Enhanced with year-aware training data generation
         """
         if not self.is_trained:
             logger.info("Training ML models...")
@@ -230,14 +243,14 @@ class WeatherRiskMLModel:
             # If ML not available, use statistical approximation
             if not ML_AVAILABLE:
                 return self._statistical_ml_approximation(nasa_data, target_date)
-            # Engineer features from current data
+            # Engineer features from current data with year context
             month = datetime.strptime(target_date, '%m-%d').month
             features = self.engineer_features({
                 **nasa_data,
                 'month': month,
                 'lat': nasa_data.get('lat', 0),
                 'lon': nasa_data.get('lon', 0)
-            })
+            }, target_year)
             
             # Prepare feature vector
             feature_vector = np.array([features[name] for name in self.feature_names]).reshape(1, -1)
@@ -312,19 +325,28 @@ class WeatherRiskMLModel:
     def generate_synthetic_training_data(self):
         """
         Generate synthetic training data for demo purposes
+        Enhanced with multi-year training data for temporal prediction capability
         """
         np.random.seed(42)
-        n_samples = 5000
+        n_samples = 6000  # Increased for multi-year coverage
         
         data = []
         for i in range(n_samples):
-            # Generate realistic weather features
+            # Generate realistic weather features with temporal variation
             lat = np.random.uniform(-60, 60)
             lon = np.random.uniform(-180, 180)
             month = np.random.randint(1, 13)
             
-            # Temperature varies with latitude and season
-            base_temp = 25 - abs(lat) * 0.3 + np.sin((month - 6) * np.pi / 6) * 10
+            # Multi-year training data (2015-2030 for historical + future patterns)
+            train_year = np.random.randint(2015, 2031)
+            
+            # Climate change trend: gradual temperature increase over years
+            climate_trend = (train_year - 2020) * 0.05  # 0.05°C per year warming
+            
+            # Year-aware feature adjustments
+            
+            # Temperature varies with latitude, season, and year (climate change)
+            base_temp = 25 - abs(lat) * 0.3 + np.sin((month - 6) * np.pi / 6) * 10 + climate_trend
             temp_max = base_temp + np.random.normal(0, 5)
             temp_min = temp_max - np.random.uniform(5, 15)
             
@@ -346,7 +368,7 @@ class WeatherRiskMLModel:
                 'lat': lat,
                 'lon': lon,
                 'month': month
-            })
+            }, train_year)
             
             labels = self.calculate_ml_labels(features, {'lat': lat, 'lon': lon})
             

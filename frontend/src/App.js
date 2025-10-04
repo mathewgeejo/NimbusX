@@ -21,12 +21,13 @@ function App() {
   const [lon, setLon] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
+  const [year, setYear] = useState(new Date().getFullYear() + 1); // Default to next year
   const [showMap, setShowMap] = useState(false);
 
   const fetchWeather = async () => {
     // Validate inputs
-    if (!lat || !lon || !date) {
-      setError('Please fill in all fields: latitude, longitude, and date');
+    if (!lat || !lon || !date || !year) {
+      setError('Please fill in all fields: latitude, longitude, date, and year');
       return;
     }
 
@@ -43,6 +44,13 @@ function App() {
       return;
     }
 
+    // Validate year
+    const currentYear = new Date().getFullYear();
+    if (year < currentYear - 5 || year > currentYear + 10) {
+      setError(`Year must be between ${currentYear - 5} and ${currentYear + 10}`);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setData(null);
@@ -52,7 +60,8 @@ function App() {
         lat: latNum,
         lon: lonNum,
         location: location || 'Selected Location',
-        date: date
+        date: date,
+        year: year
       });
 
       setData(response.data);
@@ -130,7 +139,7 @@ function App() {
 
             {/* Date Input */}
             <div>
-              <DatePicker date={date} setDate={setDate} />
+              <DatePicker date={date} setDate={setDate} year={year} setYear={setYear} />
             </div>
           </div>
 
