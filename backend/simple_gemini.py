@@ -49,8 +49,12 @@ Respond ONLY with valid JSON:
     "heat_discomfort": 60.0
   }},
   "accuracy_metrics": {{
+    "data_quality_score": 88.0,
+    "statistical_confidence": 85.0,
+    "model_reliability": 82.0,
     "overall_confidence": 85.0,
-    "uncertainty_level": "low"
+    "uncertainty_level": "low",
+    "data_completeness": 100.0
   }},
   "summary": "AI weather analysis for {location}.",
   "key_takeaway": "Key weather insight."
