@@ -19,6 +19,7 @@ load_dotenv(dotenv_path=ENV_PATH)
 from nasa_api import fetch_nasa_weather_data
 from data_processor import process_weather_data
 from gemini_agent import generate_weather_summary
+from gemini_analyzer import analyze_weather_with_ai
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -71,30 +72,17 @@ def get_weather_probabilities():
         if not nasa_data:
             return jsonify({"error": "Failed to fetch NASA data"}), 500
         
-        # Step 2: Process data and calculate probabilities
-        probabilities = process_weather_data(nasa_data, date)
+        # Step 2: Use Gemini AI for comprehensive analysis
+        logger.info(f"🤖 Starting AI-powered analysis...")
+        ai_analysis = analyze_weather_with_ai(nasa_data, location, date)
         
-        # Step 3: Generate AI summary using Gemini
-        summary = generate_weather_summary(probabilities, location, date)
+        # Step 3: Add coordinate information
+        ai_analysis['coordinates'] = {"lat": lat, "lon": lon}
+        ai_analysis['location'] = location
+        ai_analysis['date'] = date
         
-        # Step 4: Return response with probabilities and actual metric values
-        response = {
-            "probabilities": probabilities,
-            "summary": summary,
-            "location": location,
-            "coordinates": {"lat": lat, "lon": lon},
-            "date": date,
-            "metrics": {
-                "temp_max": round(nasa_data.get('temp_max', 0), 1) if nasa_data.get('temp_max') else None,
-                "temp_min": round(nasa_data.get('temp_min', 0), 1) if nasa_data.get('temp_min') else None,
-                "precipitation": round(nasa_data.get('precipitation', 0), 1) if nasa_data.get('precipitation') else None,
-                "wind_speed": round(nasa_data.get('wind_speed', 0), 1) if nasa_data.get('wind_speed') else None,
-                "heat_index": round(nasa_data.get('humidity', 0), 1) if nasa_data.get('humidity') else None
-            }
-        }
-        
-        logger.info(f"Successfully processed request for {location}")
-        return jsonify(response), 200
+        logger.info(f"✅ Successfully processed AI analysis for {location} - Confidence: {ai_analysis.get('accuracy_metrics', {}).get('overall_confidence', 'N/A')}%")
+        return jsonify(ai_analysis), 200
         
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")

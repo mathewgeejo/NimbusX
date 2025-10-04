@@ -99,7 +99,9 @@ def fetch_nasa_weather_data(lat, lon, target_date):
         }
         
         logger.info(f"Successfully fetched NASA data for month {month}")
-        return result
+        
+        # Return complete NASA response for AI analysis
+        return data
         
     except requests.RequestException as e:
         logger.error(f"NASA API request failed: {str(e)}")

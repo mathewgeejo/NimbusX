@@ -6,6 +6,9 @@ import MapSelector from './components/MapSelector';
 import LocationInput from './components/LocationInput';
 import DatePicker from './components/DatePicker';
 import LoadingSpinner from './components/LoadingSpinner';
+import AccuracyMetrics from './components/AccuracyMetrics';
+import DetailedAnalysis from './components/DetailedAnalysis';
+import AdvancedInsights from './components/AdvancedInsights';
 import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -203,18 +206,39 @@ function App() {
           <div className="fade-in">
             {/* AI Summary */}
             <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-8">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                🤖 AI Weather Insights
+              <h2 className="text-2xl font-semibold mb-4 text-gray-800 flex items-center">
+                <span className="text-3xl mr-2">🤖</span>
+                AI Weather Intelligence Report
               </h2>
-              <p className="text-lg text-gray-700 leading-relaxed">
+              <p className="text-lg text-gray-700 leading-relaxed mb-4">
                 {data.summary}
               </p>
-              <div className="mt-4 text-sm text-gray-500">
-                <p>📍 Location: {data.location || 'Selected Location'}</p>
-                <p>📅 Target Date: {data.date}</p>
-                <p>🗺️ Coordinates: {data.coordinates?.lat}°, {data.coordinates?.lon}°</p>
+              
+              {data.key_takeaway && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mt-4">
+                  <p className="text-sm font-semibold text-blue-900">🎯 Key Takeaway:</p>
+                  <p className="text-blue-800">{data.key_takeaway}</p>
+                </div>
+              )}
+              
+              <div className="mt-4 text-sm text-gray-500 grid md:grid-cols-3 gap-2">
+                <p>📍 <span className="font-semibold">Location:</span> {data.location || 'Selected Location'}</p>
+                <p>📅 <span className="font-semibold">Target Date:</span> {data.date}</p>
+                <p>🗺️ <span className="font-semibold">Coordinates:</span> {data.coordinates?.lat}°, {data.coordinates?.lon}°</p>
               </div>
+              
+              {data.metadata && (
+                <div className="mt-3 text-xs text-gray-400 border-t pt-2">
+                  <p>🤖 <span className="font-semibold">AI Model:</span> {data.metadata.ai_model} | 
+                     📊 <span className="font-semibold">Data Source:</span> {data.metadata.data_source} | 
+                     🕐 <span className="font-semibold">Analyzed:</span> {new Date(data.metadata.analysis_timestamp).toLocaleString()}
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Accuracy Metrics */}
+            <AccuracyMetrics metrics={data.accuracy_metrics} />
 
             {/* Probability Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -234,6 +258,15 @@ function App() {
                 );
               })}
             </div>
+
+            {/* Detailed Analysis */}
+            <DetailedAnalysis analysis={data.detailed_analysis} />
+
+            {/* Advanced Insights & Recommendations */}
+            <AdvancedInsights 
+              insights={data.advanced_insights} 
+              recommendations={data.recommendations} 
+            />
 
             {/* Probability Chart */}
             <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
