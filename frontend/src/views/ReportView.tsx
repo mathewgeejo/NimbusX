@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Analysis, ReportFormat } from "../api/contracts";
 import { ErrorPanel, LoadingPanel, Notice, PageHeader, RouteLink } from "../components/ui";
+import { AnalysisWorkspaceNav } from "../components/workspaceNavigation";
 
 function filename(analysisId: string, format: ReportFormat): string {
   return "nimbusx-analysis-" + analysisId + "." + format;
@@ -65,6 +66,7 @@ export function ReportView(props: { analysisId: string; navigate: (to: string) =
         }
       />
       {loading ? <LoadingPanel label="Checking report availability…" /> : null}
+      <AnalysisWorkspaceNav analysisId={props.analysisId} active="report" navigate={props.navigate} />
       {error ? <ErrorPanel error={error} onRetry={() => void load()} /> : null}
       {analysis ? (
         <section className="surface report-panel" aria-labelledby="report-version-title">

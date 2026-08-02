@@ -59,9 +59,14 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
         title="Climate risk, with the evidence attached"
         description="Organize point sites and project-linked assessments while this development process is running. NimbusX does not prepopulate a portfolio with sample risks."
         actions={
-          <RouteLink className="button button--primary" to="/assessments/new" navigate={props.navigate}>
-            Start an assessment
-          </RouteLink>
+          <div className="button-group">
+            <RouteLink className="button button--secondary" to="/operations" navigate={props.navigate}>
+              Operations
+            </RouteLink>
+            <RouteLink className="button button--primary" to="/assessments/new" navigate={props.navigate}>
+              Start an assessment
+            </RouteLink>
+          </div>
         }
       />
 
@@ -75,6 +80,19 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
           This development foundation stores workspace records only in process memory, so data is lost when
           the API restarts. A decision is withheld when required evidence is incomplete.
         </p>
+      </section>
+
+      <section className="portfolio-workspace-links" aria-label="Portfolio workspace tools">
+        <RouteLink className="workspace-link-card" to="/operations" navigate={props.navigate}>
+          <span className="eyebrow">Operational controls</span>
+          <strong>Define threshold and review patterns</strong>
+          <span>Use named, evidence-linked alert rules rather than informal weather checks.</span>
+        </RouteLink>
+        <RouteLink className="workspace-link-card" to="/assessments/new" navigate={props.navigate}>
+          <span className="eyebrow">Assessment builder</span>
+          <strong>Run an explicit local time-window analysis</strong>
+          <span>Choose a site, horizon, and thresholds without silently filling missing data.</span>
+        </RouteLink>
       </section>
 
       <div className="two-column">

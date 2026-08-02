@@ -12,6 +12,7 @@ import {
   RouteLink,
   StatusPill
 } from "../components/ui";
+import { AnalysisWorkspaceNav } from "../components/workspaceNavigation";
 import { displayLikelihood, displayValue, titleCase } from "../lib/format";
 import { displayDateTime } from "../lib/time";
 
@@ -152,6 +153,8 @@ export function AnalysisView(props: { analysisId: string; navigate: (to: string)
           </div>
         }
       />
+
+      <AnalysisWorkspaceNav analysisId={props.analysisId} active="summary" navigate={props.navigate} />
 
       {loading && !analysis ? <LoadingPanel label="Loading assessment status..." /> : null}
       {error ? <ErrorPanel error={error} onRetry={() => setRefreshKey((value) => value + 1)} /> : null}
@@ -302,6 +305,80 @@ export function AnalysisView(props: { analysisId: string; navigate: (to: string)
                   </ul>
                 </div>
               ) : null}
+            </section>
+          ) : null}
+
+          {canDisplayFindings && analysis.operational_findings.length > 0 ? (
+            <section className="surface operational-findings" aria-labelledby="operational-findings-title">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Published asset screening</p>
+                  <h2 id="operational-findings-title">Template controls evaluated against this asset</h2>
+                </div>
+                <RouteLink className="text-link" to={evidencePath} navigate={props.navigate}>
+                  Inspect evidence
+                </RouteLink>
+              </div>
+              <Notice tone="info" title="Screening result, not an asset-risk verdict">
+                <p>
+                  These outcomes apply published template controls to the returned source-backed findings.
+                  They do not certify compliance, automate emergency response, or replace an asset owner&apos;s decision.
+                </p>
+              </Notice>
+              <div className="table-scroll">
+                <table>
+                  <caption>Published asset screening outcomes for this assessment</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Control</th>
+                      <th scope="col">Hazard evidence</th>
+                      <th scope="col">Screening status</th>
+                      <th scope="col">Action / context</th>
+                      <th scope="col">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysis.operational_findings.map((finding) => (
+                      <tr key={finding.rule_id}>
+                        <th scope="row">
+                          {finding.rule_name}
+                          <span className="table-detail">Template: {finding.template_id}</span>
+                        </th>
+                        <td>
+                          {titleCase(finding.hazard)}
+                          <span className="table-detail">
+                            Source severity: {titleCase(finding.source_severity)} / {titleCase(finding.source_finding_status)}
+                          </span>
+                        </td>
+                        <td>{titleCase(finding.status)}</td>
+                        <td>
+                          {finding.action ?? "No action supplied while context or source evidence is incomplete."}
+                          <span className="table-detail">{finding.rationale}</span>
+                          {finding.missing_exposure_fields.length > 0 ? (
+                            <span className="table-detail">
+                              Missing exposure: {finding.missing_exposure_fields.join(", ")}
+                            </span>
+                          ) : null}
+                          {finding.missing_vulnerability_fields.length > 0 ? (
+                            <span className="table-detail">
+                              Missing vulnerability: {finding.missing_vulnerability_fields.join(", ")}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>
+                          {finding.evidence_ids.length > 0 ? (
+                            <RouteLink className="text-link" to={evidencePath} navigate={props.navigate}>
+                              {finding.evidence_ids.length} record{finding.evidence_ids.length === 1 ? "" : "s"}
+                            </RouteLink>
+                          ) : (
+                            "Not linked"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           ) : null}
 

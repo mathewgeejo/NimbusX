@@ -8,6 +8,7 @@ import {
   PageHeader,
   RouteLink
 } from "../components/ui";
+import { AnalysisWorkspaceNav } from "../components/workspaceNavigation";
 import { displayCalendarDate, displayDateTime } from "../lib/time";
 
 function QueryDetails(props: { evidence: EvidenceRecord }) {
@@ -57,6 +58,7 @@ export function EvidenceView(props: { analysisId: string; navigate: (to: string)
       />
 
       {!data && !error ? <LoadingPanel label="Loading evidence records…" /> : null}
+      <AnalysisWorkspaceNav analysisId={props.analysisId} active="evidence" navigate={props.navigate} />
       {error ? <ErrorPanel error={error} onRetry={() => void load()} /> : null}
       {data && data.evidence.length === 0 ? (
         <EmptyState title="No evidence records returned">

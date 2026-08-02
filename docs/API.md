@@ -52,7 +52,7 @@ Example response:
 - `GET /v1/analyses/{id}` returns the assessment lifecycle status and, after processing, findings, decision, limitations, evidence IDs, and data gaps.
 - `GET /v1/analyses/{id}/evidence` returns browser-safe, content-hashed source-manifest metadata. Raw extracts and normalized time series are not sent to browser clients and are only process-local in this foundation.
 - `POST /v1/analyses/{id}/compare` lists up to ten selected terminal assessment summaries. It does not calculate an aligned change, delta, or ranking by window, site, baseline, or scenario yet.
-- `GET /v1/analyses/{id}/report?format=json|csv` exports the structured assessment. PDF signing/rendering belongs in the production artifact service.
+- `GET /v1/analyses/{id}/report?format=json|csv|manifest` exports the structured assessment or its evidence/report manifest. PDF signing/rendering belongs in the production artifact service.
 
 A finding includes a hazard name, threshold event definition, operator, unit, sample size or source basis, likelihood where scientifically valid, calibration status, recommendation, evidence IDs, and limitations. V1 always suppresses asset-risk verdicts as `insufficient_evidence` until a published template-specific exposure, vulnerability, consequence, and decision policy exists.
 
@@ -64,6 +64,55 @@ A finding includes a hazard name, threshold event definition, operator, unit, sa
 - `GET /v1/projects/{project_id}/analyses`
 
 An analysis created with a stored site inherits that site's project; an inline site must provide `project_id` to be associated. Polygon geometries may be stored for a future spatial workflow but are rejected for V1 analysis until a source-backed spatial aggregation adapter exists. The foundation uses development-scoped in-memory storage. Production deployments must back these endpoints with organization-scoped Postgres/PostGIS and authorization.
+
+## Assets and operational screening
+
+- `GET /v1/asset-templates` returns versioned built-asset templates, their
+  required exposure/vulnerability fields, supported hazards, and published
+  screening rules.
+- `GET/POST /v1/projects/{project_id}/assets` lists or registers an asset
+  linked to a saved project point site.
+- `POST /v1/projects/{project_id}/assets/import` accepts either `csv_text` or a
+  Point-only GeoJSON `FeatureCollection`; set `dry_run: true` to validate rows
+  without writing records.
+
+An assessment submitted with `asset_id` inherits that asset's site and retains
+the template's source-linked operational findings. These outcomes are
+screening controls (`action_required`, `monitored`, `insufficient_context`, or
+`source_unavailable`), not asset-risk verdicts. Missing context never becomes
+an action.
+
+## Alerts and safe notification rehearsal
+
+- `GET/POST /v1/projects/{project_id}/alert-rules` manages explicit rules for
+  observed threshold breaches, historical baseline likelihood, or finding
+  severity.
+- `POST /v1/projects/{project_id}/alert-rules/{rule_id}/evaluate` evaluates
+  selected terminal project assessments and creates deduplicated,
+  evidence-linked events.
+- `GET /v1/projects/{project_id}/alert-events` lists recorded events.
+- `GET/POST /v1/projects/{project_id}/notification-channels` lists or creates
+  email/HTTPS webhook/Slack-compatible targets. A `secret_reference` must use
+  `secret://` and is never returned in the public response.
+- `POST /v1/projects/{project_id}/alert-events/{event_id}/notification-channels/{channel_id}/dispatch`
+  records a dry run by default. The foundation makes no external request. A
+  channel configured as `live` returns an explicit `unavailable` receipt until
+  a reviewed dispatcher, secret manager, retry queue, and durable audit store
+  exist.
+- `GET /v1/projects/{project_id}/alert-events/{event_id}/notification-receipts`
+  returns the immutable local dispatch-receipt history.
+
+Alert events are not forecasts, emergency actions, or proof that a message was
+delivered.
+
+## Source catalog
+
+`GET /v1/sources/health` exposes adapter implementation and local health
+disclosure without making hidden provider calls. It must not be treated as a
+remote availability probe. NASA POWER Daily is configured but `not_checked`
+until an assessment retrieval; forecast, seasonal, scenario, and spatial
+exposure sources explicitly report `unavailable` until their real adapters are
+installed.
 
 ## Error envelope
 

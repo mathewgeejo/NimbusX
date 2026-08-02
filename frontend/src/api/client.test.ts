@@ -78,6 +78,7 @@ describe("NimbusX API client", () => {
             status: "partial",
             mode: "auto",
             project_id: null,
+            asset_id: null,
             resolved_mode: "observed",
             created_at: "2026-08-02T00:00:00Z",
             generated_at: "2026-08-02T00:01:00Z",
@@ -120,6 +121,7 @@ describe("NimbusX API client", () => {
                 limitation: null
               }
             ],
+            operational_findings: [],
             decision: null,
             evidence_ids: ["evidence-1"],
             data_gaps: ["Wind observation was unavailable."],
@@ -158,5 +160,112 @@ describe("NimbusX API client", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abortError));
 
     await expect(api.getAnalysis("analysis-1", new AbortController().signal)).rejects.toBe(abortError);
+  });
+
+  it("decodes versioned asset templates before exposing them to the workspace", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            id: "data_center",
+            display_name: "Data center",
+            description: "Critical digital infrastructure.",
+            required_exposure_fields: [
+              {
+                key: "service_criticality",
+                label: "Service criticality",
+                description: "Criticality of supported services.",
+                value_type: "enum",
+                allowed_values: ["standard", "critical"],
+                required: true
+              }
+            ],
+            required_vulnerability_fields: [],
+            supported_hazards: ["extreme_heat", "wind"],
+            operational_rules: [
+              {
+                id: "data-center-heat-v1",
+                name: "Heat continuity review",
+                hazard: "extreme_heat",
+                minimum_severity: "moderate",
+                required_exposure_fields: ["service_criticality"],
+                required_vulnerability_fields: [],
+                action: "Review cooling capacity.",
+                rationale: "Published screening rule."
+              }
+            ],
+            version: "1.0"
+          }
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const templates = await api.listAssetTemplates();
+
+    expect(templates[0].operational_rules[0].minimum_severity).toBe("moderate");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/asset-templates",
+      expect.objectContaining({ credentials: "same-origin" })
+    );
+  });
+
+  it("rejects malformed alert events instead of inventing delivery state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            {
+              id: "event-1",
+              project_id: "project-1",
+              rule_id: "rule-1",
+              asset_id: null,
+              analysis_id: "analysis-1",
+              hazard: "extreme_heat",
+              event_kind: "severity_trigger",
+              summary: "Needs review",
+              evidence_ids: [],
+              delivery_status: "sent",
+              created_at: "2026-08-02T00:00:00Z"
+            }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+    );
+
+    await expect(api.listAlertEvents("project-1")).rejects.toEqual(
+      expect.objectContaining({ name: "ApiError", code: "invalid_response" })
+    );
+  });
+
+  it("decodes a safe notification receipt and never assumes an external send", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "receipt-1",
+          project_id: "project-1",
+          alert_event_id: "event-1",
+          channel_id: "channel-1",
+          status: "dry_run",
+          created_at: "2026-08-02T00:00:00Z",
+          message: "Dry run recorded; no external notification was sent.",
+          payload: { alert_event_id: "event-1", evidence_ids: ["evidence-1"] }
+        }),
+        { status: 201, headers: { "content-type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const receipt = await api.dispatchAlertEvent("project-1", "event-1", "channel-1");
+
+    expect(receipt.status).toBe("dry_run");
+    expect(receipt.message).toContain("no external notification");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/projects/project-1/alert-events/event-1/notification-channels/channel-1/dispatch",
+      expect.objectContaining({ method: "POST", credentials: "same-origin" })
+    );
   });
 });

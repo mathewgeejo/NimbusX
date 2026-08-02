@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { CompareResponse } from "../api/contracts";
 import { ErrorPanel, Notice, PageHeader, RouteLink, StatusPill } from "../components/ui";
+import { AnalysisWorkspaceNav } from "../components/workspaceNavigation";
 import { titleCase } from "../lib/format";
 
 function idsFromInput(value: string): string[] {
@@ -57,6 +58,7 @@ export function CompareView(props: { analysisId: string; navigate: (to: string) 
           </RouteLink>
         }
       />
+      <AnalysisWorkspaceNav analysisId={props.analysisId} active="compare" navigate={props.navigate} />
       <div className="two-column two-column--wide-first">
         <section className="surface" aria-labelledby="comparison-builder-title">
           <p className="eyebrow">Assessment selection</p>

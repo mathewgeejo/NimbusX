@@ -10,6 +10,11 @@
   comparison. It is not a substitute for user identity or authorization.
 - Browser-facing evidence omits raw provider payloads and normalized time
   series; it exposes content-hashed provenance metadata instead.
+- Notification targets are constrained to email recipients or HTTPS
+  webhook/Slack-compatible URLs. A secret-manager reference must use
+  `secret://`; it is retained internally and never returned by the API.
+- Notification dispatch is a local dry run or an explicit unavailable result;
+  this repository contains no outbound delivery client.
 - The private-plane chart runs as non-root, drops Linux capabilities, mounts
   mTLS material read-only, disables service-account token mounting, defaults
   to deny-all Kubernetes ingress/egress, and requires a successful
@@ -35,6 +40,9 @@ is not a trusted identity claim.
   database passwords; never commit production values to `.env`.
 - Per-principal and per-IP limits, security telemetry, audit completeness,
   dependency/image scanning, and incident procedures.
+- A reviewed outbound notification dispatcher with secret retrieval, SSRF
+  defenses, tenant-bound allow-lists, idempotency keys, retry/dead-letter
+  handling, delivery receipts, and immutable audit records.
 
 ## Optional narration
 

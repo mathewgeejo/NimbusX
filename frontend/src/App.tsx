@@ -4,8 +4,11 @@ import { useBrowserLocation } from "./hooks/useBrowserLocation";
 import { AdministrationView } from "./views/AdministrationView";
 import { AnalysisView } from "./views/AnalysisView";
 import { AssessmentBuilderView } from "./views/AssessmentBuilderView";
+import { AlertsView } from "./views/AlertsView";
+import { AssetInventoryView } from "./views/AssetInventoryView";
 import { CompareView } from "./views/CompareView";
 import { EvidenceView } from "./views/EvidenceView";
+import { OperationsView } from "./views/OperationsView";
 import { PortfolioView } from "./views/PortfolioView";
 import { ProjectView } from "./views/ProjectView";
 import { ReportView } from "./views/ReportView";
@@ -43,8 +46,16 @@ export default function App() {
     content = <PortfolioView navigate={navigate} />;
   } else if (pathname === "/assessments/new") {
     content = <AssessmentBuilderView navigate={navigate} />;
+  } else if (pathname === "/operations") {
+    content = <OperationsView navigate={navigate} />;
   } else if (pathname === "/administration") {
     content = <AdministrationView />;
+  } else if (segments[0] === "projects" && segments.length === 3 && segments[2] === "assets") {
+    const projectId = decodeSegment(segments[1]);
+    content = projectId ? <AssetInventoryView projectId={projectId} navigate={navigate} /> : <NotFoundView navigate={navigate} />;
+  } else if (segments[0] === "projects" && segments.length === 3 && segments[2] === "alerts") {
+    const projectId = decodeSegment(segments[1]);
+    content = projectId ? <AlertsView projectId={projectId} navigate={navigate} /> : <NotFoundView navigate={navigate} />;
   } else if (segments[0] === "projects" && segments.length === 2) {
     const projectId = decodeSegment(segments[1]);
     content = projectId ? <ProjectView projectId={projectId} navigate={navigate} /> : <NotFoundView navigate={navigate} />;

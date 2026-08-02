@@ -257,10 +257,324 @@ class AssetContext(ApiModel):
     vulnerability: dict[str, Any] | None = None
 
 
+class AssetCriticality(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class AssetFieldSpec(ApiModel):
+    """A published field required by an asset template's screening rules."""
+
+    key: str = Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    label: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=500)
+    value_type: Literal["string", "number", "boolean", "enum"] = "string"
+    allowed_values: list[str] = Field(default_factory=list, max_length=30)
+    required: bool = True
+
+    @model_validator(mode="after")
+    def enum_values_match_type(self) -> AssetFieldSpec:
+        if self.value_type == "enum" and not self.allowed_values:
+            raise ValueError("enum asset fields must declare at least one allowed value")
+        if self.value_type != "enum" and self.allowed_values:
+            raise ValueError("allowed_values may only be set for enum asset fields")
+        return self
+
+
+class OperationalRuleDefinition(ApiModel):
+    """A versioned, published screening rule; it is never an asset-risk verdict."""
+
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]{2,99}$")
+    name: str = Field(min_length=1, max_length=160)
+    hazard: HazardType
+    minimum_severity: Severity
+    required_exposure_fields: list[str] = Field(default_factory=list, max_length=30)
+    required_vulnerability_fields: list[str] = Field(default_factory=list, max_length=30)
+    action: str = Field(min_length=1, max_length=1000)
+    rationale: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("minimum_severity")
+    @classmethod
+    def actionable_minimum_severity(cls, value: Severity) -> Severity:
+        if value == Severity.UNKNOWN:
+            raise ValueError("operational rules cannot use unknown as a minimum severity")
+        return value
+
+
+class AssetTemplate(ApiModel):
+    """A public, versioned catalog entry for a built-asset type."""
+
+    id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    display_name: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=1000)
+    required_exposure_fields: list[AssetFieldSpec] = Field(default_factory=list, max_length=30)
+    required_vulnerability_fields: list[AssetFieldSpec] = Field(default_factory=list, max_length=30)
+    supported_hazards: list[HazardType] = Field(default_factory=list, max_length=10)
+    operational_rules: list[OperationalRuleDefinition] = Field(default_factory=list, max_length=30)
+    version: str = "1.0"
+
+
+class PortfolioAssetCreate(ApiModel):
+    """An asset references a project site; no coordinates are silently duplicated."""
+
+    name: str = Field(min_length=1, max_length=200)
+    site_id: UUID
+    template_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    external_id: str | None = Field(default=None, max_length=200)
+    criticality: AssetCriticality = AssetCriticality.MEDIUM
+    tags: list[str] = Field(default_factory=list, max_length=30)
+    exposure: dict[str, Any] = Field(default_factory=dict)
+    vulnerability: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("tags")
+    @classmethod
+    def clean_tags(cls, values: list[str]) -> list[str]:
+        cleaned = [value.strip() for value in values if value.strip()]
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("asset tags must not contain duplicates")
+        if any(len(value) > 80 for value in cleaned):
+            raise ValueError("asset tags must not exceed 80 characters")
+        return cleaned
+
+
+class PortfolioAsset(PortfolioAssetCreate):
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AssetImportRequest(ApiModel):
+    """One source document per request; uploads stay in the caller's control plane."""
+
+    csv_text: str | None = Field(default=None, max_length=1_000_000)
+    geojson: dict[str, Any] | None = None
+    default_template_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    dry_run: bool = False
+
+    @model_validator(mode="after")
+    def one_import_source(self) -> AssetImportRequest:
+        if (self.csv_text is None) == (self.geojson is None):
+            raise ValueError("provide exactly one of csv_text or geojson")
+        if self.csv_text is not None and not self.csv_text.strip():
+            raise ValueError("csv_text must not be empty")
+        return self
+
+
+class AssetImportRowResult(ApiModel):
+    row_number: int = Field(ge=1)
+    name: str | None = None
+    status: Literal["created", "validated", "rejected"]
+    asset_id: UUID | None = None
+    site_id: UUID | None = None
+    code: str | None = None
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class AssetImportResult(ApiModel):
+    project_id: UUID
+    dry_run: bool
+    status: Literal["complete", "partial", "failed"]
+    created_count: int = Field(ge=0)
+    rejected_count: int = Field(ge=0)
+    rows: list[AssetImportRowResult] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
+class OperationalFindingStatus(StrEnum):
+    ACTION_REQUIRED = "action_required"
+    MONITORED = "monitored"
+    INSUFFICIENT_CONTEXT = "insufficient_context"
+    SOURCE_UNAVAILABLE = "source_unavailable"
+
+
+class OperationalRiskFinding(ApiModel):
+    """A rule outcome tied to source-backed hazard evidence and asset context."""
+
+    asset_id: UUID
+    template_id: str
+    rule_id: str
+    rule_name: str
+    hazard: HazardType
+    status: OperationalFindingStatus
+    source_finding_status: FindingStatus
+    source_severity: Severity
+    evidence_ids: list[UUID] = Field(default_factory=list)
+    action: str | None = None
+    rationale: str
+    missing_exposure_fields: list[str] = Field(default_factory=list)
+    missing_vulnerability_fields: list[str] = Field(default_factory=list)
+
+
+class AlertTriggerType(StrEnum):
+    OBSERVED_THRESHOLD_BREACH = "observed_threshold_breach"
+    BASELINE_LIKELIHOOD = "baseline_likelihood"
+    SEVERITY_AT_LEAST = "severity_at_least"
+
+
+class AlertEventKind(StrEnum):
+    OBSERVED_THRESHOLD_BREACH = "observed_threshold_breach"
+    HISTORICAL_PATTERN = "historical_pattern"
+    SEVERITY_TRIGGER = "severity_trigger"
+
+
+class AlertDeliveryStatus(StrEnum):
+    RECORDED_ONLY = "recorded_only"
+
+
+class AlertRuleCreate(ApiModel):
+    """A rule that evaluates completed source-backed assessment findings only."""
+
+    name: str = Field(min_length=1, max_length=200)
+    hazard: HazardType
+    trigger_type: AlertTriggerType
+    asset_id: UUID | None = None
+    minimum_likelihood: float | None = Field(default=None, ge=0, le=1)
+    minimum_severity: Severity | None = None
+    enabled: bool = True
+
+    @model_validator(mode="after")
+    def valid_trigger_parameters(self) -> AlertRuleCreate:
+        if self.minimum_severity == Severity.UNKNOWN:
+            raise ValueError("minimum_severity may not be unknown")
+        if self.trigger_type == AlertTriggerType.BASELINE_LIKELIHOOD:
+            if self.minimum_likelihood is None:
+                raise ValueError("baseline_likelihood rules require minimum_likelihood")
+            if self.minimum_severity is not None:
+                raise ValueError("baseline_likelihood rules must not include minimum_severity")
+        elif self.trigger_type == AlertTriggerType.SEVERITY_AT_LEAST:
+            if self.minimum_severity is None:
+                raise ValueError("severity_at_least rules require minimum_severity")
+            if self.minimum_likelihood is not None:
+                raise ValueError("severity_at_least rules must not include minimum_likelihood")
+        elif self.minimum_likelihood is not None or self.minimum_severity is not None:
+            raise ValueError("observed_threshold_breach rules must not include trigger thresholds")
+        return self
+
+
+class AlertRule(AlertRuleCreate):
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AlertEvent(ApiModel):
+    """An immutable local record of a matched evidence-backed rule."""
+
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID
+    rule_id: UUID
+    asset_id: UUID | None = None
+    analysis_id: UUID
+    hazard: HazardType
+    event_kind: AlertEventKind
+    summary: str = Field(min_length=1, max_length=1000)
+    evidence_ids: list[UUID] = Field(default_factory=list)
+    delivery_status: AlertDeliveryStatus = AlertDeliveryStatus.RECORDED_ONLY
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class AlertEvaluateRequest(ApiModel):
+    analysis_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+    @field_validator("analysis_ids")
+    @classmethod
+    def distinct_analysis_ids(cls, values: list[UUID]) -> list[UUID]:
+        if len(set(values)) != len(values):
+            raise ValueError("analysis_ids must not contain duplicates")
+        return values
+
+
+class AlertEvaluationSkip(ApiModel):
+    analysis_id: UUID
+    reason: str
+
+
+class AlertEvaluationResponse(ApiModel):
+    rule: AlertRule
+    events: list[AlertEvent] = Field(default_factory=list)
+    created_count: int = Field(ge=0)
+    existing_count: int = Field(ge=0)
+    skipped: list[AlertEvaluationSkip] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
+class NotificationChannelKind(StrEnum):
+    """The intentionally small set of reviewed notification channel shapes."""
+
+    WEBHOOK = "webhook"
+    EMAIL = "email"
+    SLACK = "slack"
+
+
+class NotificationDeliveryMode(StrEnum):
+    """Live delivery remains unavailable until a durable dispatcher is installed."""
+
+    DRY_RUN = "dry_run"
+    LIVE = "live"
+
+
+class NotificationReceiptStatus(StrEnum):
+    DRY_RUN = "dry_run"
+    UNAVAILABLE = "unavailable"
+    DISABLED = "disabled"
+
+
+class NotificationChannelCreate(ApiModel):
+    """A tenant-approved delivery target, never a secret or provider credential."""
+
+    name: str = Field(min_length=1, max_length=200)
+    kind: NotificationChannelKind
+    target: str = Field(min_length=3, max_length=2_048)
+    enabled: bool = True
+    delivery_mode: NotificationDeliveryMode = NotificationDeliveryMode.DRY_RUN
+    secret_reference: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def safe_notification_target(self) -> NotificationChannelCreate:
+        if self.kind in {NotificationChannelKind.WEBHOOK, NotificationChannelKind.SLACK}:
+            if not self.target.startswith("https://"):
+                raise ValueError("webhook and Slack notification targets must use HTTPS")
+        elif "@" not in self.target or self.target.startswith("@") or self.target.endswith("@"):
+            raise ValueError("email notification target must be a recipient address")
+        if self.secret_reference and not self.secret_reference.startswith("secret://"):
+            raise ValueError("notification secret_reference must use the secret:// scheme")
+        return self
+
+
+class NotificationChannel(ApiModel):
+    """Browser-safe notification channel view; secret references are never returned."""
+
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID
+    name: str
+    kind: NotificationChannelKind
+    target: str
+    enabled: bool
+    delivery_mode: NotificationDeliveryMode
+    has_secret_reference: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class NotificationDispatchReceipt(ApiModel):
+    """An immutable record of a dispatch attempt or safe dry run."""
+
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID
+    alert_event_id: UUID
+    channel_id: UUID
+    status: NotificationReceiptStatus
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    message: str = Field(min_length=1, max_length=1_000)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
 class AnalysisCreateRequest(ApiModel):
     project_id: UUID | None = None
     site_id: UUID | None = None
     site: SiteInput | None = None
+    asset_id: UUID | None = None
     window: TimeWindow
     mode: AnalysisMode = AnalysisMode.AUTO
     asset: AssetContext | None = None
@@ -272,8 +586,12 @@ class AnalysisCreateRequest(ApiModel):
 
     @model_validator(mode="after")
     def one_site_source(self) -> AnalysisCreateRequest:
+        if self.asset_id is not None:
+            if self.site is not None or self.site_id is not None:
+                raise ValueError("asset_id may not be combined with site or site_id")
+            return self
         if (self.site is None) == (self.site_id is None):
-            raise ValueError("provide exactly one of site or site_id")
+            raise ValueError("provide exactly one of site or site_id, or provide asset_id")
         return self
 
 
@@ -393,6 +711,7 @@ class Assessment(ApiModel):
     status: AnalysisStatus
     mode: AnalysisMode
     project_id: UUID | None = None
+    asset_id: UUID | None = None
     resolved_mode: AnalysisMode | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     generated_at: datetime | None = None
@@ -401,6 +720,7 @@ class Assessment(ApiModel):
     site: SiteInput
     window: TimeWindow
     findings: list[HazardFinding] = Field(default_factory=list)
+    operational_findings: list[OperationalRiskFinding] = Field(default_factory=list)
     decision: AnalysisDecision | None = None
     evidence_ids: list[UUID] = Field(default_factory=list)
     data_gaps: list[str] = Field(default_factory=list)

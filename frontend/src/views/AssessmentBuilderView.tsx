@@ -13,6 +13,7 @@ import { isValidIanaTimeZone, localDateTimeInZoneToIso } from "../lib/time";
 interface BuilderForm {
   projectId: string;
   siteId: string;
+  assetId: string;
   siteName: string;
   latitude: string;
   longitude: string;
@@ -43,6 +44,7 @@ function initialForm(): BuilderForm {
   return {
     projectId: "",
     siteId: "",
+    assetId: "",
     siteName: "",
     latitude: "",
     longitude: "",
@@ -154,6 +156,10 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
       request.project_id = form.projectId.trim();
     }
 
+    if (form.assetId.trim() && form.siteId.trim()) {
+      throw new Error("Use either a registered asset ID or a site ID, not both.");
+    }
+
     const hasAssetInput =
       form.assetTemplate.trim() !== "" || form.exposure.trim() !== "" || form.vulnerability.trim() !== "";
     if (hasAssetInput) {
@@ -184,6 +190,10 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
         throw new Error("Choose at least one emissions scenario.");
       }
       request.scenarios = scenarios;
+    }
+
+    if (form.assetId.trim()) {
+      return { ...request, asset_id: form.assetId.trim() };
     }
 
     if (form.siteId.trim()) {
@@ -281,6 +291,17 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
                 autoComplete="off"
               />
             </label>
+            <label htmlFor="assessment-asset-id">
+              Registered asset ID <span className="optional">optional</span>
+              <input
+                id="assessment-asset-id"
+                value={form.assetId}
+                onChange={(event) => updateField("assetId", event.target.value)}
+                placeholder="Use instead of a site ID"
+                autoComplete="off"
+              />
+              <span className="field-hint">An asset supplies its saved point site and template context.</span>
+            </label>
             <label htmlFor="assessment-timezone">
               Local IANA time zone
               <input
@@ -293,7 +314,7 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
               />
             </label>
           </div>
-          {!form.siteId.trim() ? (
+          {!form.siteId.trim() && !form.assetId.trim() ? (
             <div className="form-grid form-grid--three">
               <label htmlFor="assessment-site-name">
                 Site name

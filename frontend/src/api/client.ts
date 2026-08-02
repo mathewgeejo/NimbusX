@@ -1,16 +1,30 @@
 import type {
   Analysis,
   AnalysisEvidence,
+  AlertEvaluationResult,
+  AlertEvent,
+  AlertRule,
+  AssetImportRequest,
+  AssetImportResult,
+  AssetTemplate,
   CompareRequest,
   CompareResponse,
   CreateAnalysisRequest,
   CreateAnalysisResponse,
+  CreateAlertRuleRequest,
+  CreateNotificationChannelRequest,
+  CreatePortfolioAssetRequest,
   CreateProjectRequest,
   CreateSiteRequest,
+  EvaluateAlertRuleRequest,
   EvidenceRecord,
+  NotificationChannel,
+  NotificationDispatchReceipt,
+  PortfolioAsset,
   Project,
   ReportFormat,
-  Site
+  Site,
+  SourceHealthResponse
 } from "./contracts";
 
 export class ApiError extends Error {
@@ -45,7 +59,14 @@ const analysisStatuses = ["queued", "running", "complete", "partial", "failed", 
 const comparisonKinds = ["selected_assessments"] as const;
 const hazardTypes = ["extreme_heat", "extreme_cold", "heavy_precipitation", "wind", "drought"] as const;
 const findingStatuses = ["available", "unavailable"] as const;
+const operationalFindingStatuses = [
+  "action_required",
+  "monitored",
+  "insufficient_context",
+  "source_unavailable"
+] as const;
 const severities = ["low", "moderate", "high", "unknown"] as const;
+const actionableSeverities = ["low", "moderate", "high"] as const;
 const calibrationStatuses = [
   "not_applicable",
   "unavailable",
@@ -53,6 +74,32 @@ const calibrationStatuses = [
   "insufficient_skill"
 ] as const;
 const decisions = ["acceptable", "mitigation_required", "high_risk", "insufficient_evidence"] as const;
+const assetCriticalities = ["low", "medium", "high", "critical"] as const;
+const alertTriggerTypes = [
+  "observed_threshold_breach",
+  "baseline_likelihood",
+  "severity_at_least"
+] as const;
+const alertDeliveryStatuses = ["recorded_only"] as const;
+const alertEventKinds = ["observed_threshold_breach", "historical_pattern", "severity_trigger"] as const;
+const notificationChannelKinds = ["webhook", "email", "slack"] as const;
+const notificationDeliveryModes = ["dry_run", "live"] as const;
+const notificationReceiptStatuses = ["dry_run", "unavailable", "disabled"] as const;
+const assetImportStatuses = ["complete", "partial", "failed"] as const;
+const assetImportRowStatuses = ["created", "validated", "rejected"] as const;
+const sourceCapabilities = [
+  "observed_daily",
+  "historical_baseline",
+  "operational_forecast",
+  "seasonal_outlook",
+  "scenario_projection",
+  "flood_exposure",
+  "wildfire_exposure",
+  "water_stress_exposure"
+] as const;
+const sourceImplementationStates = ["implemented", "unavailable"] as const;
+const sourceHealthStatuses = ["not_checked", "unavailable", "degraded"] as const;
+const remoteProbePolicies = ["on_retrieval", "explicit_only", "not_applicable"] as const;
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -113,6 +160,18 @@ function nullableStringField(record: UnknownRecord, field: string, resource: str
     throw invalidResponse(resource);
   }
   return value;
+}
+
+function nullableNumberField(record: UnknownRecord, field: string, resource: string): number | null {
+  const value = record[field];
+  if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) {
+    throw invalidResponse(resource);
+  }
+  return value;
+}
+
+function objectRecordField(record: UnknownRecord, field: string, resource: string): UnknownRecord {
+  return recordOf(record[field], resource);
 }
 
 function arrayField(record: UnknownRecord, field: string, resource: string): unknown[] {
@@ -214,6 +273,23 @@ function validateFinding(value: unknown, resource: string): void {
   nullableStringField(finding, "limitation", resource);
 }
 
+function validateOperationalFinding(value: unknown, resource: string): void {
+  const finding = recordOf(value, resource);
+  stringField(finding, "asset_id", resource);
+  stringField(finding, "template_id", resource);
+  stringField(finding, "rule_id", resource);
+  stringField(finding, "rule_name", resource);
+  literalField(finding, "hazard", hazardTypes, resource);
+  literalField(finding, "status", operationalFindingStatuses, resource);
+  literalField(finding, "source_finding_status", findingStatuses, resource);
+  literalField(finding, "source_severity", severities, resource);
+  stringArrayField(finding, "evidence_ids", resource);
+  nullableStringField(finding, "action", resource);
+  stringField(finding, "rationale", resource);
+  stringArrayField(finding, "missing_exposure_fields", resource);
+  stringArrayField(finding, "missing_vulnerability_fields", resource);
+}
+
 function validateAnalysis(value: unknown): Analysis {
   const resource = "analysis";
   const analysis = recordOf(value, resource);
@@ -221,6 +297,7 @@ function validateAnalysis(value: unknown): Analysis {
   literalField(analysis, "status", analysisStatuses, resource);
   literalField(analysis, "mode", analysisModes, resource);
   nullableStringField(analysis, "project_id", resource);
+  nullableStringField(analysis, "asset_id", resource);
   nullableLiteralField(analysis, "resolved_mode", analysisModes, resource);
   stringField(analysis, "created_at", resource);
   nullableStringField(analysis, "generated_at", resource);
@@ -233,6 +310,9 @@ function validateAnalysis(value: unknown): Analysis {
   stringField(window, "start", resource);
   stringField(window, "end", resource);
   arrayField(analysis, "findings", resource).forEach((finding) => validateFinding(finding, resource));
+  arrayField(analysis, "operational_findings", resource).forEach((finding) =>
+    validateOperationalFinding(finding, resource)
+  );
 
   if (analysis.decision !== null) {
     const decision = recordOf(analysis.decision, resource);
@@ -271,6 +351,224 @@ function validateSite(value: unknown): Site {
   }
   nullableStringField(site, "address", resource);
   return site as unknown as Site;
+}
+
+function validateAssetTemplateField(value: unknown, resource: string): void {
+  const field = recordOf(value, resource);
+  stringField(field, "key", resource);
+  stringField(field, "label", resource);
+  stringField(field, "description", resource);
+  literalField(field, "value_type", ["string", "number", "boolean", "enum"] as const, resource);
+  stringArrayField(field, "allowed_values", resource);
+  if (typeof field.required !== "boolean") {
+    throw invalidResponse(resource);
+  }
+}
+
+function validateAssetTemplate(value: unknown): AssetTemplate {
+  const resource = "asset template";
+  const template = recordOf(value, resource);
+  stringField(template, "id", resource);
+  stringField(template, "display_name", resource);
+  stringField(template, "description", resource);
+  arrayField(template, "required_exposure_fields", resource).forEach((field) =>
+    validateAssetTemplateField(field, resource)
+  );
+  arrayField(template, "required_vulnerability_fields", resource).forEach((field) =>
+    validateAssetTemplateField(field, resource)
+  );
+  arrayField(template, "supported_hazards", resource).forEach((hazard) => {
+    if (typeof hazard !== "string" || !hazardTypes.includes(hazard as (typeof hazardTypes)[number])) {
+      throw invalidResponse(resource);
+    }
+  });
+  arrayField(template, "operational_rules", resource).forEach((value) => {
+    const rule = recordOf(value, resource);
+    stringField(rule, "id", resource);
+    stringField(rule, "name", resource);
+    literalField(rule, "hazard", hazardTypes, resource);
+    literalField(rule, "minimum_severity", actionableSeverities, resource);
+    stringArrayField(rule, "required_exposure_fields", resource);
+    stringArrayField(rule, "required_vulnerability_fields", resource);
+    stringField(rule, "action", resource);
+    stringField(rule, "rationale", resource);
+  });
+  stringField(template, "version", resource);
+  return template as unknown as AssetTemplate;
+}
+
+function validatePortfolioAsset(value: unknown): PortfolioAsset {
+  const resource = "portfolio asset";
+  const asset = recordOf(value, resource);
+  stringField(asset, "id", resource);
+  stringField(asset, "project_id", resource);
+  stringField(asset, "site_id", resource);
+  stringField(asset, "template_id", resource);
+  stringField(asset, "name", resource);
+  nullableStringField(asset, "external_id", resource);
+  literalField(asset, "criticality", assetCriticalities, resource);
+  stringArrayField(asset, "tags", resource);
+  objectRecordField(asset, "exposure", resource);
+  objectRecordField(asset, "vulnerability", resource);
+  stringField(asset, "created_at", resource);
+  return asset as unknown as PortfolioAsset;
+}
+
+function validateAssetImportResult(value: unknown): AssetImportResult {
+  const resource = "asset import";
+  const result = recordOf(value, resource);
+  stringField(result, "project_id", resource);
+  if (typeof result.dry_run !== "boolean") {
+    throw invalidResponse(resource);
+  }
+  literalField(result, "status", assetImportStatuses, resource);
+  numberField(result, "created_count", resource);
+  numberField(result, "rejected_count", resource);
+  arrayField(result, "rows", resource).forEach((value) => {
+    const row = recordOf(value, resource);
+    numberField(row, "row_number", resource);
+    nullableStringField(row, "name", resource);
+    literalField(row, "status", assetImportRowStatuses, resource);
+    nullableStringField(row, "asset_id", resource);
+    nullableStringField(row, "site_id", resource);
+    nullableStringField(row, "code", resource);
+    stringField(row, "message", resource);
+  });
+  stringArrayField(result, "limitations", resource);
+  return result as unknown as AssetImportResult;
+}
+
+function validateAlertRule(value: unknown): AlertRule {
+  const resource = "alert rule";
+  const rule = recordOf(value, resource);
+  stringField(rule, "id", resource);
+  stringField(rule, "project_id", resource);
+  stringField(rule, "name", resource);
+  nullableStringField(rule, "asset_id", resource);
+  literalField(rule, "hazard", hazardTypes, resource);
+  literalField(rule, "trigger_type", alertTriggerTypes, resource);
+  nullableNumberField(rule, "minimum_likelihood", resource);
+  nullableLiteralField(rule, "minimum_severity", actionableSeverities, resource);
+  if (typeof rule.enabled !== "boolean") {
+    throw invalidResponse(resource);
+  }
+  stringField(rule, "created_at", resource);
+  return rule as unknown as AlertRule;
+}
+
+function validateAlertEvent(value: unknown): AlertEvent {
+  const resource = "alert event";
+  const event = recordOf(value, resource);
+  stringField(event, "id", resource);
+  stringField(event, "project_id", resource);
+  stringField(event, "rule_id", resource);
+  nullableStringField(event, "asset_id", resource);
+  stringField(event, "analysis_id", resource);
+  literalField(event, "hazard", hazardTypes, resource);
+  literalField(event, "event_kind", alertEventKinds, resource);
+  stringField(event, "summary", resource);
+  stringArrayField(event, "evidence_ids", resource);
+  literalField(event, "delivery_status", alertDeliveryStatuses, resource);
+  stringField(event, "created_at", resource);
+  return event as unknown as AlertEvent;
+}
+
+function validateNotificationChannel(value: unknown): NotificationChannel {
+  const resource = "notification channel";
+  const channel = recordOf(value, resource);
+  stringField(channel, "id", resource);
+  stringField(channel, "project_id", resource);
+  stringField(channel, "name", resource);
+  literalField(channel, "kind", notificationChannelKinds, resource);
+  stringField(channel, "target", resource);
+  if (typeof channel.enabled !== "boolean" || typeof channel.has_secret_reference !== "boolean") {
+    throw invalidResponse(resource);
+  }
+  literalField(channel, "delivery_mode", notificationDeliveryModes, resource);
+  stringField(channel, "created_at", resource);
+  return channel as unknown as NotificationChannel;
+}
+
+function validateNotificationDispatchReceipt(value: unknown): NotificationDispatchReceipt {
+  const resource = "notification dispatch receipt";
+  const receipt = recordOf(value, resource);
+  stringField(receipt, "id", resource);
+  stringField(receipt, "project_id", resource);
+  stringField(receipt, "alert_event_id", resource);
+  stringField(receipt, "channel_id", resource);
+  literalField(receipt, "status", notificationReceiptStatuses, resource);
+  stringField(receipt, "created_at", resource);
+  stringField(receipt, "message", resource);
+  objectRecordField(receipt, "payload", resource);
+  return receipt as unknown as NotificationDispatchReceipt;
+}
+
+function validateAlertEvaluationResult(value: unknown): AlertEvaluationResult {
+  const resource = "alert evaluation";
+  const result = recordOf(value, resource);
+  validateAlertRule(result.rule);
+  arrayField(result, "events", resource).forEach((event) => validateAlertEvent(event));
+  numberField(result, "created_count", resource);
+  numberField(result, "existing_count", resource);
+  arrayField(result, "skipped", resource).forEach((value) => {
+    const skipped = recordOf(value, resource);
+    stringField(skipped, "analysis_id", resource);
+    stringField(skipped, "reason", resource);
+  });
+  stringArrayField(result, "limitations", resource);
+  return result as unknown as AlertEvaluationResult;
+}
+
+function validateSourceHealthResponse(value: unknown): SourceHealthResponse {
+  const resource = "source health";
+  const response = recordOf(value, resource);
+  stringField(response, "generated_at", resource);
+  arrayField(response, "sources", resource).forEach((value) => {
+    const source = recordOf(value, resource);
+    stringField(source, "id", resource);
+    stringField(source, "provider", resource);
+    stringField(source, "dataset", resource);
+    arrayField(source, "capabilities", resource).forEach((capability) => {
+      if (
+        typeof capability !== "string" ||
+        !sourceCapabilities.includes(capability as (typeof sourceCapabilities)[number])
+      ) {
+        throw invalidResponse(resource);
+      }
+    });
+    literalField(source, "implementation", sourceImplementationStates, resource);
+    literalField(source, "remote_probe_policy", remoteProbePolicies, resource);
+    const evidenceContract = objectRecordField(source, "evidence_contract", resource);
+    if (
+      typeof evidenceContract.requires_model_version !== "boolean" ||
+      typeof evidenceContract.requires_raw_extract !== "boolean"
+    ) {
+      throw invalidResponse(resource);
+    }
+    stringArrayField(evidenceContract, "required_query_keys", resource);
+    stringArrayField(evidenceContract, "required_unit_keys", resource);
+    stringArrayField(source, "limitations", resource);
+    literalField(source, "status", sourceHealthStatuses, resource);
+    stringField(source, "checked_at", resource);
+    if (typeof source.remote_checked !== "boolean") {
+      throw invalidResponse(resource);
+    }
+    stringField(source, "message", resource);
+    const details = objectRecordField(source, "details", resource);
+    if (
+      !Object.values(details).every(
+        (detail) =>
+          detail === null ||
+          typeof detail === "string" ||
+          typeof detail === "number" ||
+          typeof detail === "boolean"
+      )
+    ) {
+      throw invalidResponse(resource);
+    }
+  });
+  stringArrayField(response, "limitations", resource);
+  return response as unknown as SourceHealthResponse;
 }
 
 function validateEvidenceRecord(value: unknown): EvidenceRecord {
@@ -443,6 +741,161 @@ export const api = {
       "/v1/projects/" + encodeURIComponent(projectId) + "/sites",
       { method: "POST", body: payload },
       validateSite
+    );
+  },
+
+  listAssetTemplates(signal?: AbortSignal): Promise<AssetTemplate[]> {
+    return request("/v1/asset-templates", { signal }, (payload) => {
+      if (!Array.isArray(payload)) {
+        throw invalidResponse("asset template list");
+      }
+      return payload.map(validateAssetTemplate);
+    });
+  },
+
+  getSourceHealth(signal?: AbortSignal): Promise<SourceHealthResponse> {
+    return request("/v1/sources/health", { signal }, validateSourceHealthResponse);
+  },
+
+  listProjectAssets(projectId: string, signal?: AbortSignal): Promise<PortfolioAsset[]> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/assets",
+      { signal },
+      (payload) => {
+        if (!Array.isArray(payload)) {
+          throw invalidResponse("project asset list");
+        }
+        return payload.map(validatePortfolioAsset);
+      }
+    );
+  },
+
+  createProjectAsset(projectId: string, payload: CreatePortfolioAssetRequest): Promise<PortfolioAsset> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/assets",
+      { method: "POST", body: payload },
+      validatePortfolioAsset
+    );
+  },
+
+  importProjectAssets(projectId: string, payload: AssetImportRequest): Promise<AssetImportResult> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/assets/import",
+      { method: "POST", body: payload },
+      validateAssetImportResult
+    );
+  },
+
+  listAlertRules(projectId: string, signal?: AbortSignal): Promise<AlertRule[]> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/alert-rules",
+      { signal },
+      (payload) => {
+        if (!Array.isArray(payload)) {
+          throw invalidResponse("alert rule list");
+        }
+        return payload.map(validateAlertRule);
+      }
+    );
+  },
+
+  createAlertRule(projectId: string, payload: CreateAlertRuleRequest): Promise<AlertRule> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/alert-rules",
+      { method: "POST", body: payload },
+      validateAlertRule
+    );
+  },
+
+  listAlertEvents(projectId: string, signal?: AbortSignal): Promise<AlertEvent[]> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/alert-events",
+      { signal },
+      (payload) => {
+        if (!Array.isArray(payload)) {
+          throw invalidResponse("alert event list");
+        }
+        return payload.map(validateAlertEvent);
+      }
+    );
+  },
+
+  listNotificationChannels(projectId: string, signal?: AbortSignal): Promise<NotificationChannel[]> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/notification-channels",
+      { signal },
+      (payload) => {
+        if (!Array.isArray(payload)) {
+          throw invalidResponse("notification channel list");
+        }
+        return payload.map(validateNotificationChannel);
+      }
+    );
+  },
+
+  createNotificationChannel(
+    projectId: string,
+    payload: CreateNotificationChannelRequest
+  ): Promise<NotificationChannel> {
+    return request(
+      "/v1/projects/" + encodeURIComponent(projectId) + "/notification-channels",
+      { method: "POST", body: payload },
+      validateNotificationChannel
+    );
+  },
+
+  listNotificationReceipts(
+    projectId: string,
+    eventId: string,
+    signal?: AbortSignal
+  ): Promise<NotificationDispatchReceipt[]> {
+    return request(
+      "/v1/projects/" +
+        encodeURIComponent(projectId) +
+        "/alert-events/" +
+        encodeURIComponent(eventId) +
+        "/notification-receipts",
+      { signal },
+      (payload) => {
+        if (!Array.isArray(payload)) {
+          throw invalidResponse("notification receipt list");
+        }
+        return payload.map(validateNotificationDispatchReceipt);
+      }
+    );
+  },
+
+  dispatchAlertEvent(
+    projectId: string,
+    eventId: string,
+    channelId: string
+  ): Promise<NotificationDispatchReceipt> {
+    return request(
+      "/v1/projects/" +
+        encodeURIComponent(projectId) +
+        "/alert-events/" +
+        encodeURIComponent(eventId) +
+        "/notification-channels/" +
+        encodeURIComponent(channelId) +
+        "/dispatch",
+      { method: "POST" },
+      validateNotificationDispatchReceipt
+    );
+  },
+
+  evaluateAlertRule(
+    projectId: string,
+    ruleId: string,
+    payload: EvaluateAlertRuleRequest
+  ): Promise<AlertEvaluationResult> {
+    return request(
+      "/v1/projects/" +
+        encodeURIComponent(projectId) +
+        "/alert-rules/" +
+        encodeURIComponent(ruleId) +
+        "/evaluate",
+      { method: "POST", body: payload },
+      validateAlertEvaluationResult
     );
   },
 

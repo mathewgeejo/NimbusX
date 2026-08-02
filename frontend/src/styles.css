@@ -206,6 +206,48 @@ a {
   gap: 0.65rem;
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: -0.6rem 0 1.5rem;
+  padding: 0.35rem;
+  border: 1px solid #d7e5e9;
+  border-radius: 0.62rem;
+  background: rgb(255 255 255 / 72%);
+}
+
+.workspace-nav__link {
+  min-height: 2.25rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.38rem;
+  color: #466675;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.workspace-nav__link:hover {
+  background: #edf7f7;
+  color: #075c63;
+}
+
+.workspace-nav__link--active {
+  background: #d9eeee;
+  color: #075c63;
+}
+
 .eyebrow {
   margin: 0 0 0.3rem;
   color: #08717a;
@@ -246,6 +288,39 @@ a {
   border-color: #cde4e5;
 }
 
+.portfolio-workspace-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.workspace-link-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #d3e4e8;
+  border-radius: 0.65rem;
+  background: rgb(255 255 255 / 78%);
+  color: #496775;
+  text-decoration: none;
+}
+
+.workspace-link-card:hover {
+  border-color: #78a5ae;
+  background: #f8fcfc;
+}
+
+.workspace-link-card strong {
+  color: #234657;
+  font-size: 0.98rem;
+}
+
+.workspace-link-card > span:last-child {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .portfolio-intro h2 {
   max-width: 35rem;
   margin: 0;
@@ -258,6 +333,42 @@ a {
   line-height: 1.65;
 }
 
+.pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pattern-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #d9e7eb;
+  border-radius: 0.55rem;
+  background: #fbfdfd;
+}
+
+.pattern-card h3 {
+  margin: 0;
+  color: #254455;
+  font-size: 0.98rem;
+}
+
+.pattern-card p {
+  margin: 0.6rem 0 0;
+  color: #526d7a;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.numbered-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.9rem 0 0;
+  padding-left: 1.3rem;
+  color: #345360;
+  line-height: 1.52;
+}
+
 .two-column {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -266,6 +377,93 @@ a {
 
 .two-column--wide-first {
   grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.6fr);
+}
+
+.asset-workspace-grid,
+.import-result,
+.evaluation-result,
+.evaluation-rule-table,
+.source-health-panel,
+.operational-findings {
+  margin-top: 1.5rem;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.template-card {
+  padding: 1rem;
+  border: 1px solid #d8e7ea;
+  border-radius: 0.55rem;
+  background: #fbfdfd;
+}
+
+.template-card h3 {
+  margin: 0;
+  color: #244456;
+  font-size: 1rem;
+}
+
+.template-card > p {
+  margin: 0.5rem 0 0;
+  color: #536d7b;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.compact-definition-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.9rem 0;
+}
+
+.compact-definition-list > div {
+  min-width: 0;
+}
+
+.compact-definition-list dt {
+  color: #66808d;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.compact-definition-list dd {
+  margin: 0.22rem 0 0;
+  color: #2f5261;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.template-attribute-groups {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.checkbox-grid .checkbox-card--block {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  min-height: 4.25rem;
+}
+
+.checkbox-card--block strong,
+.checkbox-card--block .table-detail {
+  display: block;
 }
 
 .section-heading {
@@ -842,6 +1040,7 @@ pre {
 
   .page-header,
   .portfolio-intro,
+  .portfolio-workspace-links,
   .two-column,
   .two-column--wide-first,
   .assessment-form__submit {
@@ -860,7 +1059,11 @@ pre {
 
   .form-grid,
   .form-grid--three,
-  .definition-list {
+  .definition-list,
+  .pattern-grid,
+  .template-grid,
+  .checkbox-grid,
+  .compact-definition-list {
     grid-template-columns: 1fr;
   }
 

@@ -87,6 +87,14 @@ export function WorkspaceShell(props: {
               New assessment
             </RouteLink>
             <RouteLink
+              className={isCurrent("/operations") ? "nav-link nav-link--active" : "nav-link"}
+              to="/operations"
+              navigate={navigate}
+              aria-current={isCurrent("/operations") ? "page" : undefined}
+            >
+              Operations
+            </RouteLink>
+            <RouteLink
               className={isCurrent("/administration") ? "nav-link nav-link--active" : "nav-link"}
               to="/administration"
               navigate={navigate}

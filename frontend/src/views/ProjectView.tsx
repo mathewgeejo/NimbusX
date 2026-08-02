@@ -10,6 +10,7 @@ import {
   RouteLink,
   StatusPill
 } from "../components/ui";
+import { ProjectWorkspaceNav } from "../components/workspaceNavigation";
 import { titleCase } from "../lib/format";
 import { displayDateTime, isValidIanaTimeZone } from "../lib/time";
 
@@ -112,14 +113,16 @@ export function ProjectView(props: { projectId: string; navigate: (to: string) =
     <>
       <PageHeader
         eyebrow="Project workspace"
-        title="Add an assessment location"
-        description="A point site is required before NimbusX can query its source providers. Project-linked assessments can be reviewed below while this development process is running."
+        title="Sites and assessments"
+        description="Add a point site before NimbusX queries a source provider, then review assessment records linked to this project."
         actions={
           <RouteLink className="button button--secondary" to="/portfolio" navigate={props.navigate}>
             Back to portfolio
           </RouteLink>
         }
       />
+
+      <ProjectWorkspaceNav projectId={props.projectId} active="sites" navigate={props.navigate} />
 
       <div className="two-column two-column--wide-first">
         <section className="surface" aria-labelledby="site-form-title">

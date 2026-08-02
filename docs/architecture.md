@@ -14,6 +14,8 @@ React + TypeScript workspace
               -> normalized daily observations
                   -> deterministic hazard engine
                       -> content-hashed evidence manifest
+                          -> asset screening / alert-event controls
+                              -> safe notification dry-run receipt
 ```
 
 The runnable foundation supports two source-backed paths:
@@ -30,6 +32,14 @@ uncalibrated probability.
 
 The development repository is process-local and resets on restart. It is not a
 multi-user, tenant-isolated, or production persistence implementation.
+
+The workspace additionally has a versioned built-asset catalog, point-site
+asset inventory/import, deterministic asset-template screening, alert-rule
+evaluation, and notification-channel rehearsal. A notification receipt is
+either `dry_run`, `disabled`, or `unavailable`; the local foundation contains
+no network dispatcher and never represents an external message as delivered.
+`GET /v1/sources/health` is a non-networked adapter catalog rather than a
+remote provider probe.
 
 ## Target production design
 

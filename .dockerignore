@@ -33,11 +33,10 @@ frontend/coverage
 __pycache__
 *.py[cod]
 
-# Data, reports, raw extracts, and prototype archive are never container build inputs
+# Data, reports, and raw extracts are never container build inputs
 data
 artifacts
 reports
-archive
 *.sqlite3
 *.log
 

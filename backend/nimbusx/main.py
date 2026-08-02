@@ -23,13 +23,26 @@ from .errors import ApiProblem, error_payload
 from .providers import DailyClimateProvider, PowerDailyProvider
 from .repository import InMemoryRepository
 from .schemas import (
+    AlertEvaluateRequest,
+    AlertEvaluationResponse,
+    AlertEvent,
+    AlertRule,
+    AlertRuleCreate,
     AnalysisCreated,
     AnalysisCreateRequest,
     Assessment,
+    AssetImportRequest,
+    AssetImportResult,
+    AssetTemplate,
     CompareRequest,
     ComparisonResponse,
     EvidenceResponse,
     HealthResponse,
+    NotificationChannel,
+    NotificationChannelCreate,
+    NotificationDispatchReceipt,
+    PortfolioAsset,
+    PortfolioAssetCreate,
     Project,
     ProjectCreate,
     ReadinessResponse,
@@ -37,6 +50,7 @@ from .schemas import (
     StoredSite,
 )
 from .service import AnalysisService
+from .source_catalog import source_health_payload
 
 
 class RateLimiter:
@@ -192,6 +206,18 @@ def create_app(
             ],
         )
 
+    @app.get("/v1/sources/health", tags=["sources"])
+    def source_health(actor: Actor) -> dict:
+        """Disclose implementation state without hidden remote provider calls."""
+
+        del actor
+        return source_health_payload(provider, now=active_clock())
+
+    @app.get("/v1/asset-templates", response_model=list[AssetTemplate], tags=["workspace"])
+    def list_asset_templates(api_request: Request, actor: Actor) -> list[AssetTemplate]:
+        del actor
+        return api_request.app.state.service.list_asset_templates()
+
     @app.post("/v1/projects", response_model=Project, status_code=201, tags=["workspace"])
     def create_project(request: ProjectCreate, actor: Actor, api_request: Request) -> Project:
         actor_id, organization_id = actor
@@ -226,6 +252,158 @@ def create_app(
     ) -> StoredSite:
         actor_id, _ = actor
         return api_request.app.state.service.create_site(project_id, site, actor_id=actor_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/assets/import",
+        response_model=AssetImportResult,
+        tags=["workspace"],
+    )
+    def import_assets(
+        project_id: UUID,
+        import_request: AssetImportRequest,
+        actor: Actor,
+        api_request: Request,
+    ) -> AssetImportResult:
+        actor_id, _ = actor
+        return api_request.app.state.service.import_assets(
+            project_id, import_request, actor_id=actor_id
+        )
+
+    @app.get(
+        "/v1/projects/{project_id}/assets",
+        response_model=list[PortfolioAsset],
+        tags=["workspace"],
+    )
+    def list_project_assets(
+        project_id: UUID, actor: Actor, api_request: Request
+    ) -> list[PortfolioAsset]:
+        del actor
+        return api_request.app.state.service.list_project_assets(project_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/assets",
+        response_model=PortfolioAsset,
+        status_code=201,
+        tags=["workspace"],
+    )
+    def create_asset(
+        project_id: UUID,
+        asset: PortfolioAssetCreate,
+        actor: Actor,
+        api_request: Request,
+    ) -> PortfolioAsset:
+        actor_id, _ = actor
+        return api_request.app.state.service.create_asset(project_id, asset, actor_id=actor_id)
+
+    @app.get(
+        "/v1/projects/{project_id}/alert-rules",
+        response_model=list[AlertRule],
+        tags=["alerts"],
+    )
+    def list_alert_rules(project_id: UUID, actor: Actor, api_request: Request) -> list[AlertRule]:
+        del actor
+        return api_request.app.state.service.list_project_alert_rules(project_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/alert-rules",
+        response_model=AlertRule,
+        status_code=201,
+        tags=["alerts"],
+    )
+    def create_alert_rule(
+        project_id: UUID,
+        rule: AlertRuleCreate,
+        actor: Actor,
+        api_request: Request,
+    ) -> AlertRule:
+        actor_id, _ = actor
+        return api_request.app.state.service.create_alert_rule(project_id, rule, actor_id=actor_id)
+
+    @app.get(
+        "/v1/projects/{project_id}/alert-events",
+        response_model=list[AlertEvent],
+        tags=["alerts"],
+    )
+    def list_alert_events(project_id: UUID, actor: Actor, api_request: Request) -> list[AlertEvent]:
+        del actor
+        return api_request.app.state.service.list_project_alert_events(project_id)
+
+    @app.get(
+        "/v1/projects/{project_id}/notification-channels",
+        response_model=list[NotificationChannel],
+        tags=["alerts"],
+    )
+    def list_notification_channels(
+        project_id: UUID, actor: Actor, api_request: Request
+    ) -> list[NotificationChannel]:
+        del actor
+        return api_request.app.state.service.list_project_notification_channels(project_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/notification-channels",
+        response_model=NotificationChannel,
+        status_code=201,
+        tags=["alerts"],
+    )
+    def create_notification_channel(
+        project_id: UUID,
+        channel: NotificationChannelCreate,
+        actor: Actor,
+        api_request: Request,
+    ) -> NotificationChannel:
+        actor_id, _ = actor
+        return api_request.app.state.service.create_notification_channel(
+            project_id, channel, actor_id=actor_id
+        )
+
+    @app.get(
+        "/v1/projects/{project_id}/alert-events/{event_id}/notification-receipts",
+        response_model=list[NotificationDispatchReceipt],
+        tags=["alerts"],
+    )
+    def list_notification_receipts(
+        project_id: UUID,
+        event_id: UUID,
+        actor: Actor,
+        api_request: Request,
+    ) -> list[NotificationDispatchReceipt]:
+        del actor
+        return api_request.app.state.service.list_notification_receipts(project_id, event_id)
+
+    @app.post(
+        "/v1/projects/{project_id}/alert-events/{event_id}/notification-channels/{channel_id}/dispatch",
+        response_model=NotificationDispatchReceipt,
+        status_code=201,
+        tags=["alerts"],
+    )
+    def dispatch_alert_event(
+        project_id: UUID,
+        event_id: UUID,
+        channel_id: UUID,
+        actor: Actor,
+        api_request: Request,
+    ) -> NotificationDispatchReceipt:
+        actor_id, _ = actor
+        return api_request.app.state.service.dispatch_alert_event(
+            project_id, event_id, channel_id, actor_id=actor_id
+        )
+
+    @app.post(
+        "/v1/projects/{project_id}/alert-rules/{rule_id}/evaluate",
+        response_model=AlertEvaluationResponse,
+        tags=["alerts"],
+    )
+    def evaluate_alert_rule(
+        project_id: UUID,
+        rule_id: UUID,
+        request: AlertEvaluateRequest,
+        actor: Actor,
+        api_request: Request,
+    ) -> AlertEvaluationResponse:
+        actor_id, _ = actor
+        return api_request.app.state.service.evaluate_alert_rule(
+            project_id, rule_id, request, actor_id=actor_id
+        )
 
     @app.post(
         "/v1/analyses",
@@ -281,12 +459,14 @@ def create_app(
         analysis_id: UUID,
         actor: Actor,
         api_request: Request,
-        format: str = Query(default="json", pattern="^(json|csv|pdf)$"),
+        format: str = Query(default="json", pattern="^(json|csv|manifest|pdf)$"),
     ) -> Response:
         del actor
         service: AnalysisService = api_request.app.state.service
         if format == "json":
             return JSONResponse(content=service.get_assessment(analysis_id).model_dump(mode="json"))
+        if format == "manifest":
+            return JSONResponse(content=service.report_manifest(analysis_id))
         if format == "csv":
             return PlainTextResponse(
                 service.report_csv(analysis_id),

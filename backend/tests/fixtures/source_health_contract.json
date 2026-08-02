@@ -1,0 +1,19 @@
+{
+  "expected_source_ids": [
+    "nasa-power-daily",
+    "ecmwf-open-data-forecast",
+    "copernicus-seasonal-outlook",
+    "nex-gddp-cmip6-scenarios",
+    "flood-exposure",
+    "wildfire-exposure",
+    "water_stress-exposure"
+  ],
+  "expected_unavailable_source_ids": [
+    "ecmwf-open-data-forecast",
+    "copernicus-seasonal-outlook",
+    "nex-gddp-cmip6-scenarios",
+    "flood-exposure",
+    "wildfire-exposure",
+    "water_stress-exposure"
+  ]
+}

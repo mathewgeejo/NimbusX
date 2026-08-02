@@ -23,6 +23,12 @@ data, untrained models, or hard-coded confidence scores.
   modes, which are deliberately not implemented in this foundation.
 - A React/TypeScript workspace for building assessments, reviewing evidence,
   comparing work, and exporting a report view.
+- A project operational workspace with versioned built-asset templates, asset
+  registration, CSV/Point-GeoJSON import validation, deterministic screening
+  controls, evidence-linked alert rules/events, and safe notification
+  dry-run receipts.
+- A source catalog that discloses which adapters are implemented, unavailable,
+  or not remotely checked without making hidden provider requests.
 - Docker, CI, and a Helm mTLS heartbeat scaffold. It is not yet a customer-VPC
   analysis worker.
 
@@ -76,6 +82,12 @@ POST /v1/analyses
 GET  /v1/analyses/{analysis_id}
 GET  /v1/analyses/{analysis_id}/evidence
 POST /v1/projects/{project_id}/sites
+GET  /v1/asset-templates
+GET  /v1/projects/{project_id}/assets
+POST /v1/projects/{project_id}/assets/import
+GET  /v1/projects/{project_id}/alert-rules
+POST /v1/projects/{project_id}/alert-rules/{rule_id}/evaluate
+GET  /v1/sources/health
 POST /v1/analyses/{analysis_id}/compare
 GET  /v1/analyses/{analysis_id}/report
 ```
@@ -103,6 +115,8 @@ Further documentation:
 
 - [Architecture](docs/architecture.md)
 - [Science and data policy](docs/science-and-data-policy.md)
+- [Operational workspace](docs/operational-workspace.md)
+- [Source adapter contracts](docs/source-adapter-contracts.md)
 - [Hybrid data-plane guide](docs/hybrid-data-plane.md)
 
 ## License
