@@ -105,13 +105,6 @@ Further documentation:
 - [Science and data policy](docs/science-and-data-policy.md)
 - [Hybrid data-plane guide](docs/hybrid-data-plane.md)
 
-## Legacy materials
-
-The retired hackathon implementation, its synthetic-model code, and its old
-demo material live in [archive/hackathon-prototype](archive/hackathon-prototype).
-They are historical artifacts only and must not be used as product or
-scientific documentation.
-
 ## License
 
 [MIT](LICENSE)
