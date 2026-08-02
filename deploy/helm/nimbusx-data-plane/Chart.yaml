@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nimbusx-data-plane
+description: Outbound-only NimbusX private data-plane heartbeat scaffold for customer VPCs
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

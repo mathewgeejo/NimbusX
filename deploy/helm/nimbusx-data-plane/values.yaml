@@ -1,0 +1,69 @@
+replicaCount: 1
+
+image:
+  # Set an immutable customer-approved image reference before installing.
+  repository: ghcr.io/nimbusx/data-plane
+  pullPolicy: IfNotPresent
+  tag: ""
+  # Prefer an immutable digest for any production-like deployment.
+  digest: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+
+# Sensitive values are supplied by an existing Secret. The chart never creates
+# credential values from literals.
+existingSecret: ""
+
+config:
+  # Exact outbound mTLS heartbeat endpoint, not a generic control-plane origin.
+  heartbeatUrl: ""
+  # Non-secret identifier issued by the control plane to this deployment.
+  dataPlaneId: ""
+  heartbeatIntervalSeconds: 30
+
+command:
+  - python
+  - -m
+  - nimbusx.data_plane
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+
+networkPolicy:
+  # Default deny. Add only the control-plane and DNS egress rules explicitly required by this heartbeat.
+  enabled: true
+  egress: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

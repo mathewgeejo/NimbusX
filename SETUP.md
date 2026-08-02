@@ -1,159 +1,86 @@
-# Quick Setup Guide
+# NimbusX setup
 
-## 🚀 Getting Started in 5 Minutes
+## Prerequisites
 
-### Step 1: Get Your Gemini API Key
-1. Go to https://makersuite.google.com/app/apikey
-2. Click "Create API Key"
-3. Copy your key
+- Docker Desktop with Compose, or Python 3.12+ and Node.js 22+ for native development.
+- Internet access for real NASA POWER baseline requests.
+- Forecast, Copernicus seasonal, and scenario retrieval are intentionally unavailable in this foundation. They return an explicit unavailable result; credentials alone do not enable a demo mode.
 
-### Step 2: Backend Setup
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate          # Windows
-pip install -r requirements.txt
-copy .env.example .env
-# Edit .env and paste your Gemini API key
-python app.py
+## Docker development
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
 ```
 
-Backend runs at: http://localhost:5000
+Services:
 
-### Step 3: Frontend Setup
-Open a NEW terminal:
-```bash
-cd frontend
-npm install
-copy .env.example .env
-npm start
+- Workspace: <http://localhost:8080>
+- API: <http://localhost:8000>
+- OpenAPI: <http://localhost:8000/docs>
+- Liveness: <http://localhost:8000/healthz>
+- Readiness: <http://localhost:8000/readyz>
+
+Stop the stack with `docker compose down`. Add `--volumes` only when intentionally removing local database/cache data.
+
+## Native development
+
+Backend:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --require-hashes -r .\backend\requirements.lock
+pip install --no-deps --no-build-isolation -e .\backend
+uvicorn nimbusx.main:app --app-dir backend --reload --port 8000
 ```
 
-Frontend opens at: http://localhost:3000
+Frontend:
 
-### Step 4: Test It Out!
-1. Select "New York" from popular cities
-2. Click "Today" button for date
-3. Click "Check Weather Probabilities"
-4. See your results!
-
-## 🔧 Troubleshooting
-
-### Backend Issues
-
-**Problem**: `ModuleNotFoundError: No module named 'flask'`
-**Solution**: Make sure virtual environment is activated and run `pip install -r requirements.txt`
-
-**Problem**: Pandas/NumPy build errors on Windows
-**Solution**: 
-- The requirements.txt has been optimized to avoid C++ build dependencies
-- If numpy fails, you may need Microsoft C++ Build Tools
-- Alternative: Use Python 3.10 or 3.11 (better Windows compatibility)
-
-**Problem**: `GEMINI_API_KEY not found`
-**Solution**: 
-1. Copy `.env.example` to `.env`
-2. Add your actual API key to `.env`
-3. Make sure there are no spaces around the `=` sign
-
-**Problem**: NASA API request fails
-**Solution**: 
-- Check internet connection
-- NASA POWER API is free and doesn't require authentication
-- Try a different location
-
-### Frontend Issues
-
-**Problem**: `npm install` fails
-**Solution**: 
-- Make sure Node.js 16+ is installed
-- Try `npm cache clean --force` then `npm install` again
-
-**Problem**: Map doesn't load
-**Solution**: 
-- Leaflet CSS might not be loading
-- Check console for errors
-- Clear browser cache
-
-**Problem**: Backend connection refused
-**Solution**: 
-- Make sure backend is running on port 5000
-- Check `.env` file has correct `REACT_APP_API_URL`
-- Try `http://localhost:5000` instead of `http://127.0.0.1:5000`
-
-## 📋 Quick Test Commands
-
-### Test Backend
-```bash
-# Health check
-curl http://localhost:5000/api/health
-
-# Test weather endpoint (PowerShell)
-curl -Method POST -Uri http://localhost:5000/api/weather -ContentType "application/json" -Body '{"lat":40.7128,"lon":-74.006,"location":"New York","date":"06-21"}'
+```powershell
+npm --prefix frontend ci
+npm --prefix frontend run dev
 ```
 
-### Test Frontend
-- Navigate to http://localhost:3000
-- Open browser console (F12)
-- Check for any errors
+The Vite development server runs at <http://localhost:5173> and targets `http://localhost:8000` by default. Set `VITE_API_BASE_URL` only when the API is served elsewhere.
 
-## 🎯 Sample Test Data
+## Smoke test
 
-Use these for testing:
+```powershell
+Invoke-RestMethod http://localhost:8000/healthz
 
-**Locations:**
-- New York: 40.7128, -74.0060
-- London: 51.5074, -0.1278
-- Tokyo: 35.6762, 139.6503
-- Sydney: -33.8688, 151.2093
+$body = @{
+  site = @{ name = 'New York facility'; latitude = 40.7128; longitude = -74.0060; timezone = 'America/New_York' }
+  window = @{ start = '2032-07-15T09:00:00-04:00'; end = '2032-07-15T17:00:00-04:00' }
+  mode = 'baseline'
+  asset = @{ template = 'facility'; exposure = @{ criticality = 3 }; vulnerability = @{ backup_power = $true } }
+} | ConvertTo-Json -Depth 6
 
-**Dates:**
-- Summer: 06-21, 07-15, 08-01
-- Winter: 12-21, 01-15, 02-01
-- Spring: 03-21, 04-15, 05-01
-- Fall: 09-21, 10-15, 11-01
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/v1/analyses -ContentType application/json -Body $body
+```
 
-## 📦 What's Installed?
+Use the returned ID with `GET /v1/analyses/{id}`. A real NASA query may take longer than a local validation response; source failure must result in `partial` or `failed`, never invented data.
 
-### Backend
-- Flask - Web framework
-- Flask-CORS - Allow frontend to connect
-- requests - HTTP library for NASA API
-- numpy - Math calculations (for statistics)
-- google-generativeai - Gemini AI
-- python-dotenv - Environment variables
-- gunicorn - Production WSGI server
+## Dependency locks
 
-### Frontend
-- React - UI framework
-- axios - HTTP requests
-- chart.js - Charts
-- react-chartjs-2 - React wrapper for Chart.js
-- leaflet - Maps
-- react-leaflet - React wrapper for Leaflet
-- tailwindcss - Styling
+`backend/requirements.lock` is the full development/test lock used by native
+backend development and CI. `backend/requirements.runtime.lock` is the smaller
+runtime-only lock used by the API and data-plane Dockerfiles. Both are generated
+from `backend/pyproject.toml`; regenerate them together with the pinned
+`pip-tools` command after intentionally changing dependency constraints.
+## Quality commands
 
-## 🌟 Pro Tips
+```powershell
+python -m pytest backend/tests
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+npm --prefix frontend run test -- --run
+npm --prefix frontend run build
+```
 
-1. **Use Popular Cities**: Faster than typing coordinates
-2. **Try Different Dates**: Summer vs winter shows dramatic differences
-3. **Check Multiple Locations**: Compare tropical vs temperate climates
-4. **Watch the AI Summary**: It adapts to each location/date
-5. **Color Coding**: Red = high risk, Yellow = moderate, Green = low
+## Troubleshooting
 
-## 🔒 Security Note
-
-**Never commit your `.env` file to Git!**
-
-The `.gitignore` files are already configured to exclude `.env` files.
-
-## 📞 Need Help?
-
-1. Check console for error messages (F12 in browser)
-2. Make sure both backend and frontend are running
-3. Verify your Gemini API key is valid
-4. Check that ports 5000 and 3000 are not in use
-
----
-
-Happy Hacking! 🚀
+- **NASA request unavailable:** check network access and retry later. Review the returned `data_gaps` and source evidence instead of trusting an old result.
+- **Forecast/seasonal/scenario unavailable:** these adapters are intentionally not implemented in the foundation; the explicit unavailable result is expected.
+- **Browser API error:** verify `NIMBUSX_CORS_ORIGINS` or `VITE_API_BASE_URL` matches the API origin.
+- **Docker stale state:** use `docker compose down` before rebuilding. Do not remove volumes unless the local data may be discarded.

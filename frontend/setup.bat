@@ -1,25 +1,20 @@
 @echo off
 echo ========================================
-echo Will It Rain On My Parade? - Frontend Setup
+echo NimbusX frontend setup
 echo ========================================
 echo.
 
-echo Installing dependencies...
-call npm install
+echo Installing locked dependencies...
+call npm ci
 if errorlevel 1 (
-    echo Error installing dependencies!
+    echo Dependency installation failed.
     pause
     exit /b 1
 )
 
 echo.
-echo ========================================
-echo Setup Complete!
-echo ========================================
-echo.
-echo To start the frontend, run: npm start
-echo.
-echo Make sure the backend is running on port 5000!
-echo ========================================
+echo Setup complete.
+echo Run: npm run dev
+echo Set VITE_API_BASE_URL only when the control-plane API is not at http://localhost:8000.
 echo.
 pause

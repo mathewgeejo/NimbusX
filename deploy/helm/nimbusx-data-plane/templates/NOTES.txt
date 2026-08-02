@@ -1,0 +1,13 @@
+NimbusX private data-plane heartbeat scaffold installed.
+
+Before the pod can send its metadata-only mTLS heartbeat, configure:
+  - image.repository plus image.digest (preferred) or image.tag with a customer-approved image reference
+  - config.heartbeatUrl (the exact outbound heartbeat endpoint)
+  - config.dataPlaneId (the issued non-secret plane identifier)
+  - existingSecret containing tls.crt and tls.key
+  - explicit DNS and control-plane egress rules
+
+This chart intentionally does not claim signed jobs or upload raw data. It only
+sends heartbeat metadata over outbound mTLS until a reviewed job protocol is
+implemented. The default NetworkPolicy denies all ingress and egress; add only
+the endpoints necessary for the heartbeat.

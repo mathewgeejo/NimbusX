@@ -1,260 +1,117 @@
-# 🌦️ Will It Rain On My Parade?
+# NimbusX
 
-**NASA Space Apps Challenge 2024 Hackathon Project**
+NimbusX is an evidence-first climate-risk workspace for built assets: facilities,
+campuses, real estate, and infrastructure. It is designed to answer a
+defensible question:
 
-A full-stack web application that predicts extreme weather probabilities using NASA climate data and provides AI-powered insights through Google's Gemini API.
+> What weather or climate hazards are supported by the available evidence for this site, time window, and risk threshold?
 
-![NASA Logo](https://www.nasa.gov/wp-content/themes/nasa/assets/images/nasa-logo.svg)
+It does **not** manufacture forecasts from monthly climate normals, synthetic
+data, untrained models, or hard-coded confidence scores.
 
-## 🎯 Project Overview
+## What is implemented
 
-This application helps users plan outdoor activities by analyzing historical climate data from NASA's POWER API to calculate probabilities of extreme weather conditions:
+- A versioned FastAPI assessment API with typed requests, an async-style
+  lifecycle, content-hashed provenance manifests, validation, and a deprecated
+  legacy adapter.
+- Explicit `observed`, `forecast`, `seasonal`, `baseline`, and `scenario`
+  analysis modes. `seasonal` and `scenario` represent outlook/projection
+  concepts; neither is presented as a daily forecast.
+- A real NASA POWER Daily adapter for observed and baseline paths, with
+  deterministic threshold-based hazard calculations.
+- Clear `partial` and `unavailable` states for forecast, seasonal, and scenario
+  modes, which are deliberately not implemented in this foundation.
+- A React/TypeScript workspace for building assessments, reviewing evidence,
+  comparing work, and exporting a report view.
+- Docker, CI, and a Helm mTLS heartbeat scaffold. It is not yet a customer-VPC
+  analysis worker.
 
-- 🌡️ **Very Hot** - Temperature above 90th percentile
-- ❄️ **Very Cold** - Temperature below 10th percentile
-- 🌧️ **Very Wet** - Heavy precipitation (80th percentile)
-- 💨 **Very Windy** - Strong winds (85th percentile)
-- 😓 **Very Uncomfortable** - High heat index conditions
+## Scientific boundaries
 
-## 🏗️ Architecture
+| Mode | Appropriate claim |
+| --- | --- |
+| Observed / reanalysis | What was recorded, subject to source latency and coverage |
+| Forecast (0–15 days) | Source-backed forecast threshold likelihood |
+| Seasonal outlook | Broad, calibrated anomaly/risk outlook only |
+| Baseline | Historical daily likelihood around a calendar window |
+| Scenario projection | Conditional multi-model/SSP range, not a weather prediction |
 
-### Tech Stack
+NimbusX never substitutes synthetic weather when a provider fails. Missing
+evidence is displayed as a data gap and can lead to an
+`insufficient_evidence` decision.
 
-**Backend:**
-- Flask (Python 3.8+)
-- NASA POWER API for climate data
-- Google Gemini API for AI summaries
-- NumPy/Pandas for statistical analysis
+## Quick start
 
-**Frontend:**
-- React.js 18
-- TailwindCSS for styling
-- Chart.js for data visualization
-- Leaflet.js for interactive maps
-- Axios for API requests
-
-### Project Structure
-
-```
-NimbusX/
-├── backend/
-│   ├── app.py                 # Main Flask application
-│   ├── nasa_api.py            # NASA POWER API integration
-│   ├── data_processor.py      # Weather data processing & probability calculation
-│   ├── gemini_agent.py        # Gemini AI integration
-│   ├── utils/
-│   │   └── probability.py     # Statistical utility functions
-│   ├── requirements.txt       # Python dependencies
-│   └── .env.example           # Environment variables template
-│
-└── frontend/
-    ├── public/
-    │   └── index.html
-    ├── src/
-    │   ├── components/
-    │   │   ├── WeatherCard.jsx
-    │   │   ├── ProbabilityChart.jsx
-    │   │   ├── MapSelector.jsx
-    │   │   ├── LocationInput.jsx
-    │   │   ├── DatePicker.jsx
-    │   │   └── LoadingSpinner.jsx
-    │   ├── App.js             # Main React component
-    │   ├── App.css
-    │   ├── index.js
-    │   └── index.css
-    ├── package.json
-    ├── tailwind.config.js
-    └── .env.example
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
 ```
 
-## 🚀 Quick Start
+Open the workspace at <http://localhost:8080>, the API documentation at
+<http://localhost:8000/docs>, and health status at
+<http://localhost:8000/healthz>.
 
-### Prerequisites
+For native development and troubleshooting, see [SETUP.md](SETUP.md).
 
-- Python 3.8 or higher
-- Node.js 16 or higher
-- npm or yarn
-- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
+## Architecture
 
-### Backend Setup
-
-1. **Navigate to backend directory:**
-   ```bash
-   cd backend
-   ```
-
-2. **Create virtual environment:**
-   ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables:**
-   ```bash
-   # Copy the example file
-   copy .env.example .env
-   
-   # Edit .env and add your Gemini API key
-   # GEMINI_API_KEY=your_actual_api_key_here
-   ```
-
-5. **Run the Flask server:**
-   ```bash
-   python app.py
-   ```
-   
-   Backend will be running at `http://localhost:5000`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables:**
-   ```bash
-   # Copy the example file
-   copy .env.example .env
-   
-   # The default API URL (http://localhost:5000) should work for local development
-   ```
-
-4. **Run the development server:**
-   ```bash
-   npm start
-   ```
-   
-   Frontend will open at `http://localhost:3000`
-
-## 📖 Usage Guide
-
-### Using the Application
-
-1. **Select a Location:**
-   - Type a city name in the search box (popular cities available)
-   - Or click on the interactive map
-   - Or manually enter latitude/longitude
-
-2. **Choose a Date:**
-   - Enter date in MM-DD format (e.g., 06-21)
-   - Use quick select buttons for common dates
-   - Use month buttons for mid-month dates
-
-3. **Get Weather Insights:**
-   - Click "Check Weather Probabilities"
-   - View AI-generated summary
-   - Analyze probability cards with risk levels
-   - Review detailed probability breakdown chart
-
-### API Endpoints
-
-#### `POST /api/weather`
-
-Get weather probabilities for a specific location and date.
-
-**Request Body:**
-```json
-{
-  "lat": 40.7128,
-  "lon": -74.006,
-  "location": "New York City",
-  "date": "06-21"
-}
+```text
+React/TypeScript workspace
+  -> FastAPI control plane
+      -> assessment orchestration
+          -> hosted worker or customer-VPC data plane
+              -> provider adapters -> normalized data -> hazard engine
+                  -> content-hashed evidence manifest -> report
 ```
 
-**Response:**
-```json
-{
-  "probabilities": {
-    "very_hot": 68.4,
-    "very_cold": 5.2,
-    "very_wet": 45.1,
-    "very_windy": 31.7,
-    "very_uncomfortable": 52.3
-  },
-  "summary": "In late June, New York City has a 68% chance of heat above normal and moderate rain likelihood.",
-  "location": "New York City",
-  "coordinates": {"lat": 40.7128, "lon": -74.006},
-  "date": "06-21"
-}
+PostgreSQL/PostGIS, Redis-backed work/caching, and S3-compatible artifact
+storage are the production target architecture. Local development intentionally
+uses a process-local implementation, refuses production mode, and does not
+claim multi-user durability or tenant isolation.
+
+## Main API
+
+```text
+POST /v1/analyses
+GET  /v1/analyses/{analysis_id}
+GET  /v1/analyses/{analysis_id}/evidence
+POST /v1/projects/{project_id}/sites
+POST /v1/analyses/{analysis_id}/compare
+GET  /v1/analyses/{analysis_id}/report
 ```
 
-## 🔬 How It Works
+`POST /v1/analyses` returns `202` and an analysis ID. Poll its `GET` endpoint
+until its status becomes `complete`, `partial`, or `failed`. See
+[docs/API.md](docs/API.md), or use the interactive OpenAPI documentation
+locally.
 
-### 1. Data Retrieval
-- Fetches 30-year climatology data from NASA POWER API
-- Retrieves monthly averages for temperature, precipitation, wind, humidity
+## Operational notes
 
-### 2. Probability Calculation
-- Compares target month values against historical distribution
-- Calculates percentile-based probabilities
-- Uses statistical analysis (z-scores, standard deviations)
+- NASA POWER data is retrieved over HTTPS and recorded as source evidence. Cache requests and respect provider limits.
+- NASA daily values are UTC aggregates. NimbusX uses a 12:00 UTC representative timestamp only to map a source label into an IANA calendar window, with guard days requested at range boundaries; it does not present that convention as a local civil-day measurement.
+- Forecast, Copernicus seasonal, and climate-scenario retrieval are not
+  implemented in this foundation. Those modes intentionally return an explicit
+  unavailable result; credentials alone do not enable them.
+- The frontend is not allowed to infer or embellish a missing metric. It
+  renders the server status, limitations, sources, and evidence IDs.
+- `POST /api/weather` has a fixed, configured migration deadline. After that
+  timestamp it returns `410`; it never extends its own Sunset date.
+- Optional AI narration is not part of the analysis engine. It must be
+  tenant-approved, grounded in the structured result, and cite evidence IDs.
 
-### 3. AI Summary Generation
-- Sends probabilities to Google Gemini API
-- Generates natural, user-friendly weather insights
-- Provides practical planning advice
+Further documentation:
 
-### 4. Visualization
-- Color-coded probability cards (red/yellow/green)
-- Interactive bar chart
-- Risk level classifications
+- [Architecture](docs/architecture.md)
+- [Science and data policy](docs/science-and-data-policy.md)
+- [Hybrid data-plane guide](docs/hybrid-data-plane.md)
 
-## 🌍 Data Sources
+## Legacy materials
 
-- **NASA POWER API**: Provides global climatology data
-- **Google Gemini API**: AI-powered natural language generation
+The retired hackathon implementation, its synthetic-model code, and its old
+demo material live in [archive/hackathon-prototype](archive/hackathon-prototype).
+They are historical artifacts only and must not be used as product or
+scientific documentation.
 
-## 🎨 Features
+## License
 
-✅ Interactive map-based location selection  
-✅ Popular city quick-select  
-✅ Visual probability indicators  
-✅ AI-generated weather summaries  
-✅ Responsive design for mobile/desktop  
-✅ Real-time data processing  
-✅ Color-coded risk levels  
-✅ Detailed probability breakdown charts  
-
-## 🚀 Deployment
-
-### Backend (Render/Heroku)
-
-Add `gunicorn` to requirements.txt and deploy with:
-- Build: `pip install -r requirements.txt`
-- Start: `gunicorn app:app`
-
-### Frontend (Vercel/Netlify)
-
-Build command: `npm run build`  
-Publish directory: `build`
-
-## 📝 License
-
-MIT License
-
-## 🙏 Acknowledgments
-
-- NASA POWER API for providing open climate data
-- Google Gemini for AI capabilities
-- OpenStreetMap for map tiles
-
----
-
-**Made with ❤️ for NASA Space Apps Challenge 2024**
+[MIT](LICENSE)

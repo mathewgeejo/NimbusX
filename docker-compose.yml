@@ -1,0 +1,74 @@
+name: nimbusx
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nimbusx}
+      POSTGRES_USER: ${POSTGRES_USER:-nimbusx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nimbusx-local-only}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [nimbusx]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [nimbusx]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    env_file: .env
+    environment:
+      NIMBUSX_ENV: ${NIMBUSX_ENV:-development}
+      NIMBUSX_CORS_ORIGINS: ${NIMBUSX_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      NIMBUSX_DATABASE_URL: ${NIMBUSX_DATABASE_URL:-postgresql://nimbusx:nimbusx-local-only@postgres:5432/nimbusx}
+      NIMBUSX_REDIS_URL: ${NIMBUSX_REDIS_URL:-redis://redis:6379/0}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz').read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    networks: [nimbusx]
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        VITE_API_BASE_URL: /v1
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [nimbusx]
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  nimbusx:
+    driver: bridge

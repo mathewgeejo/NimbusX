@@ -1,0 +1,52 @@
+# Version control and local editor state
+.git
+.github
+.vscode
+.idea
+
+# Secrets and local runtime configuration
+.env
+.env.*
+!/.env.example
+backend/.env
+frontend/.env
+frontend/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets
+secrets/
+
+# Local dependencies and build outputs
+.venv
+venv
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/coverage
+.pytest_cache
+.mypy_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+
+# Data, reports, raw extracts, and prototype archive are never container build inputs
+data
+artifacts
+reports
+archive
+*.sqlite3
+*.log
+
+# Test/e2e outputs
+coverage
+htmlcov
+test-results
+playwright-report
+
+# OS files
+.DS_Store
+Thumbs.db

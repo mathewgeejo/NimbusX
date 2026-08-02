@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nimbusx-data-plane.fullname" . }}
+  labels:
+    {{- include "nimbusx-data-plane.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "nimbusx-data-plane.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "nimbusx-data-plane.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "nimbusx-data-plane.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: data-plane
+          image: {{ if .Values.image.digest }}"{{ .Values.image.repository }}@{{ .Values.image.digest }}"{{ else }}"{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"{{ end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          args:
+            - --heartbeat
+            - --loop
+            - --interval-seconds
+            - {{ .Values.config.heartbeatIntervalSeconds | quote }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "nimbusx-data-plane.fullname" . }}
+          env:
+            - name: NIMBUSX_DATA_PLANE_CLIENT_CERT
+              value: /var/run/nimbusx-mtls/tls.crt
+            - name: NIMBUSX_DATA_PLANE_CLIENT_KEY
+              value: /var/run/nimbusx-mtls/tls.key
+          volumeMounts:
+            - name: mtls
+              mountPath: /var/run/nimbusx-mtls
+              readOnly: true
+          # Liveness verifies that the process can still load its configuration.
+          livenessProbe:
+            exec:
+              command: ["python", "-m", "nimbusx.data_plane"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          # Readiness performs an mTLS metadata-only heartbeat. It stays unready
+          # until the customer permits DNS/control-plane egress and the receiver responds.
+          readinessProbe:
+            exec:
+              command: ["python", "-m", "nimbusx.data_plane", "--heartbeat"]
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 15
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: mtls
+          secret:
+            secretName: {{ required "existingSecret is required" .Values.existingSecret }}
+            defaultMode: 0440
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
