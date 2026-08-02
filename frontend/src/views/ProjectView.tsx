@@ -164,8 +164,9 @@ export function ProjectView(props: { projectId: string; navigate: (to: string) =
                 />
               </label>
             </div>
+            <p className="field-hint">Use decimal coordinates from a map tool; do not enter degrees, minutes, and seconds.</p>
             <label htmlFor="site-timezone">
-              Local IANA time zone
+              Local time zone
               <input
                 id="site-timezone"
                 value={form.timezone}
@@ -175,16 +176,30 @@ export function ProjectView(props: { projectId: string; navigate: (to: string) =
                 required
               />
               <span className="field-hint">
-                Dates are interpreted in this zone, not silently in the analyst&apos;s browser time zone.
+                Use a city-based time zone such as Asia/Kolkata or America/New_York. Dates are interpreted in
+                this zone, not silently in the analyst&apos;s browser time zone.
               </span>
             </label>
             {error ? <ErrorPanel error={error} /> : null}
             {createdSite ? (
               <Notice tone="success" title="Site saved">
                 <p>
-                  {createdSite.name} is available for a point assessment. Its identifier is <code>{createdSite.id}</code>.
-                  Supply that ID with this project in the assessment builder to preserve the association.
+                  {createdSite.name} is ready for a point assessment. You do not need to copy its identifier manually.
                 </p>
+                <RouteLink
+                  className="button button--secondary"
+                  to={
+                    "/assessments/new?project_id=" +
+                    encodeURIComponent(props.projectId) +
+                    "&site_id=" +
+                    encodeURIComponent(createdSite.id) +
+                    "&timezone=" +
+                    encodeURIComponent(createdSite.timezone)
+                  }
+                  navigate={props.navigate}
+                >
+                  Continue to assessment
+                </RouteLink>
               </Notice>
             ) : null}
             <button className="button button--primary" type="submit" disabled={submitting}>
@@ -199,7 +214,7 @@ export function ProjectView(props: { projectId: string; navigate: (to: string) =
           <ul className="text-list">
             <li>This form creates point sites for source-backed assessment.</li>
             <li>The API may store a validated polygon geometry for a future spatial workflow, but V1 rejects polygon analyses because it has no spatial aggregation adapter.</li>
-            <li>Address search, polygon drawing, and CSV/GeoJSON portfolio import are not available in this foundation.</li>
+            <li>Use Asset inventory to validate CSV or Point-GeoJSON asset imports. Address geocoding and polygon spatial aggregation remain unavailable.</li>
           </ul>
           <p className="subtle">
             Flood and wildfire exposure are deliberately not inferred from a point location in this version.

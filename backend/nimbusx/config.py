@@ -78,7 +78,9 @@ class Settings:
         settings = cls(
             environment=os.getenv("NIMBUSX_ENV", "development").strip().lower(),
             cors_origins=_csv(
-                "NIMBUSX_CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+                "NIMBUSX_CORS_ORIGINS",
+                "http://localhost:5173,http://127.0.0.1:5173,"
+                "http://localhost:3000,http://127.0.0.1:3000",
             ),
             allowed_hosts=_csv("NIMBUSX_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"),
             require_api_key=_bool("NIMBUSX_REQUIRE_API_KEY"),

@@ -38,17 +38,19 @@ function localDateTimeValue(date: Date): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-function initialForm(): BuilderForm {
+function initialForm(
+  initialValues: Pick<BuilderForm, "projectId" | "siteId"> & { timezone?: string }
+): BuilderForm {
   const now = new Date();
   const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   return {
-    projectId: "",
-    siteId: "",
+    projectId: initialValues.projectId,
+    siteId: initialValues.siteId,
     assetId: "",
     siteName: "",
     latitude: "",
     longitude: "",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    timezone: initialValues.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     start: localDateTimeValue(now),
     end: localDateTimeValue(end),
     mode: "auto",
@@ -74,8 +76,19 @@ const modeDescriptions: Record<AnalysisMode, string> = {
   scenario: "Long-term scenario analysis only. This foundation reports insufficient evidence because its multi-model source adapter is not implemented."
 };
 
-export function AssessmentBuilderView(props: { navigate: (to: string) => void }) {
-  const [form, setForm] = useState<BuilderForm>(initialForm);
+export function AssessmentBuilderView(props: {
+  navigate: (to: string) => void;
+  initialProjectId?: string;
+  initialSiteId?: string;
+  initialTimezone?: string;
+}) {
+  const [form, setForm] = useState<BuilderForm>(() =>
+    initialForm({
+      projectId: props.initialProjectId ?? "",
+      siteId: props.initialSiteId ?? "",
+      timezone: props.initialTimezone
+    })
+  );
   const [scenarios, setScenarios] = useState<Scenario[]>([
     "ssp126",
     "ssp245",
@@ -257,8 +270,8 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
     <>
       <PageHeader
         eyebrow="Assessment builder"
-        title="Define a defensible assessment"
-        description="Choose a site, an explicit local time window, and the analysis horizon. NimbusX returns only source-backed findings and records data gaps."
+        title="Run a climate-risk check"
+        description="Choose a location and time period. NimbusX selects the appropriate analysis type and shows the evidence it used."
         actions={
           <RouteLink className="button button--secondary" to="/portfolio" navigate={props.navigate}>
             Portfolio
@@ -266,44 +279,38 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
         }
       />
 
+      {form.siteId.trim() ? (
+        <Notice tone="success" title="Saved site selected">
+          <p>
+            This assessment is linked to the saved site{form.projectId.trim() ? " and project" : ""}. Set the time window and analysis type below.
+          </p>
+        </Notice>
+      ) : null}
+
+      {!form.siteId.trim() && !form.assetId.trim() ? (
+        <Notice tone="info" title="New to NimbusX?">
+          <p>
+            The quickest path is to create a project and save its location first. NimbusX will bring both
+            into this form automatically. You can also enter a one-off location below.
+          </p>
+          <RouteLink className="button button--secondary" to="/portfolio" navigate={props.navigate}>
+            Create a project
+          </RouteLink>
+        </Notice>
+      ) : null}
+
       <form className="assessment-form" onSubmit={(event) => void submit(event)} noValidate>
         <section className="surface" aria-labelledby="site-input-title">
           <p className="eyebrow">1. Site and time window</p>
           <h2 id="site-input-title">Where and when</h2>
-          <div className="form-grid form-grid--three">
-            <label htmlFor="assessment-project-id">
-              Project ID <span className="optional">optional</span>
-              <input
-                id="assessment-project-id"
-                value={form.projectId}
-                onChange={(event) => updateField("projectId", event.target.value)}
-                placeholder="UUID from your portfolio"
-                autoComplete="off"
-              />
-            </label>
-            <label htmlFor="assessment-site-id">
-              Existing site ID <span className="optional">optional</span>
-              <input
-                id="assessment-site-id"
-                value={form.siteId}
-                onChange={(event) => updateField("siteId", event.target.value)}
-                placeholder="Use instead of new coordinates"
-                autoComplete="off"
-              />
-            </label>
-            <label htmlFor="assessment-asset-id">
-              Registered asset ID <span className="optional">optional</span>
-              <input
-                id="assessment-asset-id"
-                value={form.assetId}
-                onChange={(event) => updateField("assetId", event.target.value)}
-                placeholder="Use instead of a site ID"
-                autoComplete="off"
-              />
-              <span className="field-hint">An asset supplies its saved point site and template context.</span>
-            </label>
+          <p className="subtle">
+            {form.siteId.trim() || form.assetId.trim()
+              ? "The saved location will be used for this assessment."
+              : "Enter the location you want to check. Coordinates can be copied from a map service."}
+          </p>
+          <div className="form-grid">
             <label htmlFor="assessment-timezone">
-              Local IANA time zone
+              Local time zone
               <input
                 id="assessment-timezone"
                 value={form.timezone}
@@ -322,6 +329,7 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
                   id="assessment-site-name"
                   value={form.siteName}
                   onChange={(event) => updateField("siteName", event.target.value)}
+                  placeholder="e.g. Mumbai office"
                   autoComplete="off"
                   required
                 />
@@ -333,6 +341,7 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
                   inputMode="decimal"
                   value={form.latitude}
                   onChange={(event) => updateField("latitude", event.target.value)}
+                  placeholder="e.g. 19.0760"
                   required
                 />
               </label>
@@ -343,11 +352,52 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
                   inputMode="decimal"
                   value={form.longitude}
                   onChange={(event) => updateField("longitude", event.target.value)}
+                  placeholder="e.g. 72.8777"
                   required
                 />
               </label>
             </div>
           ) : null}
+          <details className="advanced-options">
+            <summary>Use a saved site or asset instead</summary>
+            <div className="form-grid form-grid--three advanced-options__content">
+              <label htmlFor="assessment-project-id">
+                Project ID <span className="optional">optional</span>
+                <input
+                  id="assessment-project-id"
+                  value={form.projectId}
+                  onChange={(event) => updateField("projectId", event.target.value)}
+                  placeholder="Project ID"
+                  autoComplete="off"
+                />
+              </label>
+              <label htmlFor="assessment-site-id">
+                Existing site ID <span className="optional">optional</span>
+                <input
+                  id="assessment-site-id"
+                  value={form.siteId}
+                  onChange={(event) => updateField("siteId", event.target.value)}
+                  placeholder="Use instead of new coordinates"
+                  autoComplete="off"
+                />
+              </label>
+              <label htmlFor="assessment-asset-id">
+                Registered asset ID <span className="optional">optional</span>
+                <input
+                  id="assessment-asset-id"
+                  value={form.assetId}
+                  onChange={(event) => updateField("assetId", event.target.value)}
+                  placeholder="Use instead of a site ID"
+                  autoComplete="off"
+                />
+                <span className="field-hint">An asset supplies its saved location and template context.</span>
+              </label>
+            </div>
+            <p className="field-hint">
+              A saved site or asset is normally selected from its project page. Use these identifiers only
+              when you already have them.
+            </p>
+          </details>
           <div className="form-grid">
             <label htmlFor="assessment-start">
               Local start
@@ -377,16 +427,16 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
         </section>
 
         <section className="surface" aria-labelledby="mode-title">
-          <p className="eyebrow">2. Analysis horizon</p>
-          <h2 id="mode-title">What kind of answer is appropriate?</h2>
+          <p className="eyebrow">2. Analysis type</p>
+          <h2 id="mode-title">Choose an analysis type</h2>
           <label htmlFor="assessment-mode">
-            Mode
+            Analysis type
             <select
               id="assessment-mode"
               value={form.mode}
               onChange={(event) => updateField("mode", event.target.value as AnalysisMode)}
             >
-              <option value="auto">Auto-select from event date</option>
+              <option value="auto">Choose automatically from the date</option>
               <option value="observed">Observed / reanalysis</option>
               <option value="forecast">Operational forecast</option>
               <option value="seasonal">Seasonal outlook</option>
@@ -400,96 +450,102 @@ export function AssessmentBuilderView(props: { navigate: (to: string) => void })
         </section>
 
         <section className="surface" aria-labelledby="risk-inputs-title">
-          <p className="eyebrow">3. Asset context and thresholds</p>
-          <h2 id="risk-inputs-title">State what a finding should be measured against</h2>
+          <p className="eyebrow">3. Optional details</p>
+          <h2 id="risk-inputs-title">Add context or thresholds</h2>
           <p className="subtle">
-            V1 records optional asset context but reports hazard evidence only. NimbusX suppresses all asset-risk verdicts until a published template-specific decision policy exists.
+            You can run a useful location check without these fields. Add them only when you want the result
+            measured against a specific asset or threshold.
           </p>
-          <div className="form-grid form-grid--three">
-            <label htmlFor="asset-template">
-              Asset template <span className="optional">optional</span>
-              <select
-                id="asset-template"
-                value={form.assetTemplate}
-                onChange={(event) => updateField("assetTemplate", event.target.value)}
-              >
-                <option value="">No asset template</option>
-                <option value="facility">Facility</option>
-                <option value="campus">Campus</option>
-                <option value="real_estate">Real estate</option>
-                <option value="infrastructure">Infrastructure</option>
-              </select>
-            </label>
-            <label htmlFor="asset-exposure">
-              Exposure <span className="optional">optional</span>
-              <input
-                id="asset-exposure"
-                value={form.exposure}
-                onChange={(event) => updateField("exposure", event.target.value)}
-                placeholder="Describe exposed operations"
-              />
-            </label>
-            <label htmlFor="asset-vulnerability">
-              Vulnerability <span className="optional">optional</span>
-              <input
-                id="asset-vulnerability"
-                value={form.vulnerability}
-                onChange={(event) => updateField("vulnerability", event.target.value)}
-                placeholder="Describe relevant weakness"
-              />
-            </label>
-          </div>
+          <details className="advanced-options">
+            <summary>Optional: add asset context or thresholds</summary>
+            <div className="advanced-options__content">
+              <div className="form-grid form-grid--three">
+                <label htmlFor="asset-template">
+                  Asset template <span className="optional">optional</span>
+                  <select
+                    id="asset-template"
+                    value={form.assetTemplate}
+                    onChange={(event) => updateField("assetTemplate", event.target.value)}
+                  >
+                    <option value="">No asset template</option>
+                    <option value="facility">Facility</option>
+                    <option value="campus">Campus</option>
+                    <option value="real_estate">Real estate</option>
+                    <option value="infrastructure">Infrastructure</option>
+                  </select>
+                </label>
+                <label htmlFor="asset-exposure">
+                  Exposure <span className="optional">optional</span>
+                  <input
+                    id="asset-exposure"
+                    value={form.exposure}
+                    onChange={(event) => updateField("exposure", event.target.value)}
+                    placeholder="Describe exposed operations"
+                  />
+                </label>
+                <label htmlFor="asset-vulnerability">
+                  Vulnerability <span className="optional">optional</span>
+                  <input
+                    id="asset-vulnerability"
+                    value={form.vulnerability}
+                    onChange={(event) => updateField("vulnerability", event.target.value)}
+                    placeholder="Describe relevant weakness"
+                  />
+                </label>
+              </div>
 
-          <fieldset>
-            <legend>Optional hazard thresholds (SI units)</legend>
-            <div className="form-grid form-grid--three">
-              <label htmlFor="threshold-heat">
-                Extreme heat (°C)
-                <input
-                  id="threshold-heat"
-                  inputMode="decimal"
-                  value={form.extremeHeat}
-                  onChange={(event) => updateField("extremeHeat", event.target.value)}
-                />
-              </label>
-              <label htmlFor="threshold-cold">
-                Extreme cold (°C)
-                <input
-                  id="threshold-cold"
-                  inputMode="decimal"
-                  value={form.extremeCold}
-                  onChange={(event) => updateField("extremeCold", event.target.value)}
-                />
-              </label>
-              <label htmlFor="threshold-precipitation">
-                Heavy precipitation (mm)
-                <input
-                  id="threshold-precipitation"
-                  inputMode="decimal"
-                  value={form.heavyPrecipitation}
-                  onChange={(event) => updateField("heavyPrecipitation", event.target.value)}
-                />
-              </label>
-              <label htmlFor="threshold-wind">
-                Wind speed (m/s)
-                <input
-                  id="threshold-wind"
-                  inputMode="decimal"
-                  value={form.windSpeed}
-                  onChange={(event) => updateField("windSpeed", event.target.value)}
-                />
-              </label>
-              <label htmlFor="threshold-drought">
-                Drought precipitation (mm)
-                <input
-                  id="threshold-drought"
-                  inputMode="decimal"
-                  value={form.droughtPrecipitation}
-                  onChange={(event) => updateField("droughtPrecipitation", event.target.value)}
-                />
-              </label>
+              <fieldset>
+                <legend>Optional hazard thresholds (SI units)</legend>
+                <div className="form-grid form-grid--three">
+                  <label htmlFor="threshold-heat">
+                    Extreme heat (°C)
+                    <input
+                      id="threshold-heat"
+                      inputMode="decimal"
+                      value={form.extremeHeat}
+                      onChange={(event) => updateField("extremeHeat", event.target.value)}
+                    />
+                  </label>
+                  <label htmlFor="threshold-cold">
+                    Extreme cold (°C)
+                    <input
+                      id="threshold-cold"
+                      inputMode="decimal"
+                      value={form.extremeCold}
+                      onChange={(event) => updateField("extremeCold", event.target.value)}
+                    />
+                  </label>
+                  <label htmlFor="threshold-precipitation">
+                    Heavy precipitation (mm)
+                    <input
+                      id="threshold-precipitation"
+                      inputMode="decimal"
+                      value={form.heavyPrecipitation}
+                      onChange={(event) => updateField("heavyPrecipitation", event.target.value)}
+                    />
+                  </label>
+                  <label htmlFor="threshold-wind">
+                    Wind speed (m/s)
+                    <input
+                      id="threshold-wind"
+                      inputMode="decimal"
+                      value={form.windSpeed}
+                      onChange={(event) => updateField("windSpeed", event.target.value)}
+                    />
+                  </label>
+                  <label htmlFor="threshold-drought">
+                    Drought precipitation (mm)
+                    <input
+                      id="threshold-drought"
+                      inputMode="decimal"
+                      value={form.droughtPrecipitation}
+                      onChange={(event) => updateField("droughtPrecipitation", event.target.value)}
+                    />
+                  </label>
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
+          </details>
         </section>
 
         {form.mode === "baseline" || form.mode === "scenario" ? (

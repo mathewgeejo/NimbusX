@@ -38,14 +38,22 @@ function NotFoundView(props: { navigate: (to: string) => void }) {
 }
 
 export default function App() {
-  const { pathname, navigate } = useBrowserLocation();
+  const { pathname, search, navigate } = useBrowserLocation();
   const segments = pathname.split("/").filter(Boolean);
+  const query = new URLSearchParams(search);
   let content: ReactElement;
 
   if (pathname === "/" || pathname === "/portfolio") {
     content = <PortfolioView navigate={navigate} />;
   } else if (pathname === "/assessments/new") {
-    content = <AssessmentBuilderView navigate={navigate} />;
+    content = (
+      <AssessmentBuilderView
+        navigate={navigate}
+        initialProjectId={query.get("project_id") ?? ""}
+        initialSiteId={query.get("site_id") ?? ""}
+        initialTimezone={query.get("timezone") ?? undefined}
+      />
+    );
   } else if (pathname === "/operations") {
     content = <OperationsView navigate={navigate} />;
   } else if (pathname === "/administration") {

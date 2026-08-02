@@ -52,7 +52,7 @@ class FakeDailyProvider:
 def make_settings(**overrides):
     values = {
         "environment": "test",
-        "cors_origins": ("http://localhost:5173",),
+        "cors_origins": ("http://localhost:5173", "http://127.0.0.1:5173"),
         "allowed_hosts": ("testserver", "localhost"),
         "require_api_key": False,
         "api_keys": (),
@@ -320,10 +320,15 @@ def test_cors_allows_only_the_configured_browser_origin():
     }
 
     allowed = api.options("/v1/analyses", headers=headers)
+    ipv4_loopback = api.options(
+        "/v1/analyses",
+        headers={**headers, "Origin": "http://127.0.0.1:5173"},
+    )
     blocked = api.options(
         "/v1/analyses",
         headers={**headers, "Origin": "https://untrusted.example"},
     )
 
     assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert ipv4_loopback.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
     assert "access-control-allow-origin" not in blocked.headers

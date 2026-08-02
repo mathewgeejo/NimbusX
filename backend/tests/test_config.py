@@ -66,6 +66,15 @@ def test_production_startup_is_refused_until_tenant_controls_exist():
         settings.validate()
 
 
+def test_development_defaults_allow_common_loopback_browser_origins(monkeypatch):
+    monkeypatch.delenv("NIMBUSX_CORS_ORIGINS", raising=False)
+
+    origins = Settings.from_environment().cors_origins
+
+    assert "http://localhost:5173" in origins
+    assert "http://127.0.0.1:5173" in origins
+
+
 def test_private_data_plane_reports_missing_mtls_files_without_crashing():
     settings = build_settings(
         environment="private-data-plane",

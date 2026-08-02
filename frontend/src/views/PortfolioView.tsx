@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorPanel,
   LoadingPanel,
+  Notice,
   PageHeader,
   RouteLink
 } from "../components/ui";
@@ -56,44 +57,17 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
     <>
       <PageHeader
         eyebrow="Portfolio"
-        title="Climate risk, with the evidence attached"
-        description="Organize point sites and project-linked assessments while this development process is running. NimbusX does not prepopulate a portfolio with sample risks."
-        actions={
-          <div className="button-group">
-            <RouteLink className="button button--secondary" to="/operations" navigate={props.navigate}>
-              Operations
-            </RouteLink>
-            <RouteLink className="button button--primary" to="/assessments/new" navigate={props.navigate}>
-              Start an assessment
-            </RouteLink>
-          </div>
-        }
+        title="Start your climate-risk workspace"
+        description="Create a project, add a location, then run a source-backed assessment. The steps below keep the first setup simple."
       />
 
-      <section className="surface portfolio-intro" aria-labelledby="portfolio-workflow">
-        <div>
-          <p className="eyebrow">Evidence-first workflow</p>
-          <h2 id="portfolio-workflow">Create a project, add a site, then assess a defined time window.</h2>
-        </div>
-        <p>
-          Assessments run asynchronously and show source provenance, limitations, and a report version.
-          This development foundation stores workspace records only in process memory, so data is lost when
-          the API restarts. A decision is withheld when required evidence is incomplete.
-        </p>
-      </section>
-
-      <section className="portfolio-workspace-links" aria-label="Portfolio workspace tools">
-        <RouteLink className="workspace-link-card" to="/operations" navigate={props.navigate}>
-          <span className="eyebrow">Operational controls</span>
-          <strong>Define threshold and review patterns</strong>
-          <span>Use named, evidence-linked alert rules rather than informal weather checks.</span>
-        </RouteLink>
-        <RouteLink className="workspace-link-card" to="/assessments/new" navigate={props.navigate}>
-          <span className="eyebrow">Assessment builder</span>
-          <strong>Run an explicit local time-window analysis</strong>
-          <span>Choose a site, horizon, and thresholds without silently filling missing data.</span>
-        </RouteLink>
-      </section>
+      <Notice tone="info" title="Start here">
+        <ol className="getting-started-list">
+          <li>Create a project using the form below.</li>
+          <li>Open the project and add a point site with its local time zone.</li>
+          <li>Run an assessment, then review its evidence and limitations before acting on it.</li>
+        </ol>
+      </Notice>
 
       <div className="two-column">
         <section className="surface" aria-labelledby="project-list-title">
@@ -111,7 +85,7 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
           {error ? <ErrorPanel error={error} onRetry={() => void loadProjects()} /> : null}
           {projects && projects.length === 0 ? (
             <EmptyState title="No projects yet" action={null}>
-              Create a project to group stored sites and project-linked assessments in this development process.
+              Create your first project to keep its locations, assessments, and evidence together.
             </EmptyState>
           ) : null}
           {projects && projects.length > 0 ? (
@@ -133,10 +107,10 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
 
         <section className="surface" aria-labelledby="create-project-title">
           <p className="eyebrow">New project</p>
-          <h2 id="create-project-title">Set up a portfolio container</h2>
+          <h2 id="create-project-title">Create your first project</h2>
           <p className="subtle">
-            Project names are organizational labels only; they do not imply that an assessment has been
-            run or approved.
+            Give it a clear name, such as a portfolio, facility group, or client workstream. This local
+            development build stores workspace data only while the API is running.
           </p>
           <form className="stack-form" onSubmit={(event) => void createProject(event)} noValidate>
             <label htmlFor="project-name">
@@ -146,6 +120,7 @@ export function PortfolioView(props: { navigate: (to: string) => void }) {
                 name="project-name"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
+                placeholder="e.g. Northern facilities"
                 autoComplete="off"
                 maxLength={160}
                 required

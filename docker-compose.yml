@@ -35,7 +35,7 @@ services:
     env_file: .env
     environment:
       NIMBUSX_ENV: ${NIMBUSX_ENV:-development}
-      NIMBUSX_CORS_ORIGINS: ${NIMBUSX_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      NIMBUSX_CORS_ORIGINS: ${NIMBUSX_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
       NIMBUSX_DATABASE_URL: ${NIMBUSX_DATABASE_URL:-postgresql://nimbusx:nimbusx-local-only@postgres:5432/nimbusx}
       NIMBUSX_REDIS_URL: ${NIMBUSX_REDIS_URL:-redis://redis:6379/0}
     ports:
